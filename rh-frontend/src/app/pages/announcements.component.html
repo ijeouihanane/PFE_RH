@@ -1,0 +1,193 @@
+<section class="ann-page" [class.ann-page-employee]="!isRh">
+
+
+  <ng-container *ngIf="isRh; else employeeAnnouncements">
+    <div class="ann-kpis">
+      <article class="ann-kpi">
+        <div class="ann-kpi-content">
+          <span>Publiées</span>
+          <strong>{{ publishedCount }}</strong>
+        </div>
+        <span class="ann-stat-icon ann-icon-green"><i-icon name="megaphone" size="16"></i-icon></span>
+      </article>
+      <article class="ann-kpi">
+        <div class="ann-kpi-content">
+          <span>Épinglées</span>
+          <strong>{{ pinnedCount }}</strong>
+        </div>
+        <span class="ann-stat-icon ann-icon-orange"><i-icon name="pin" size="16"></i-icon></span>
+      </article>
+      <article class="ann-kpi">
+        <div class="ann-kpi-content">
+          <span>Archivées</span>
+          <strong>{{ archivedCount }}</strong>
+        </div>
+        <span class="ann-stat-icon ann-icon-purple"><i-icon name="archive" size="16"></i-icon></span>
+      </article>
+      <article class="ann-kpi">
+        <div class="ann-kpi-content">
+          <span>Total</span>
+          <strong>{{ announcements.length }}</strong>
+        </div>
+        <span class="ann-stat-icon ann-icon-blue"><i-icon name="layers" size="16"></i-icon></span>
+      </article>
+    </div>
+
+    <div class="ann-editor-grid">
+      <article class="ann-card">
+        <h2 class="ann-section-title"><i-icon name="megaphone" size="14"></i-icon> Nouvelle annonce</h2>
+        <form [formGroup]="form" (ngSubmit)="publish()">
+          <label>Titre de l'annonce *</label>
+          <input formControlName="titre" />
+
+          <label>Contenu *</label>
+          <textarea rows="6" formControlName="contenu"></textarea>
+
+          <div class="ann-form-row">
+            <label class="ann-file-btn">
+              <i-icon name="paperclip" size="15"></i-icon>
+              <span>{{ selectedFile ? selectedFile.name : 'Joindre un fichier' }}</span>
+              <input type="file" (change)="onFileSelected($event)" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" />
+            </label>
+            <button *ngIf="selectedFile" class="ann-icon-btn" type="button" (click)="clearFile()">
+              <i-icon name="x" size="14"></i-icon>
+            </button>
+            <label class="ann-pin-check">
+              <input type="checkbox" formControlName="epinglee" />
+              <i-icon name="pin" size="13"></i-icon>
+              Épingler l'annonce
+            </label>
+          </div>
+
+          <p class="ann-error" *ngIf="error">{{ error }}</p>
+          <p class="ann-success" *ngIf="success">{{ success }}</p>
+
+          <div class="ann-actions">
+            <button type="button" class="ann-reset" (click)="form.reset({ titre: '', contenu: '', epinglee: false }); clearFile()">Réinitialiser</button>
+            <button type="submit" class="ann-primary" [disabled]="isPublishing || form.invalid">
+              <i-icon name="send" size="15"></i-icon>
+              Publier
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article class="ann-card">
+        <h2 class="ann-section-title"><i-icon name="eye" size="14"></i-icon> Aperçu</h2>
+        <div class="ann-preview">
+          <div class="ann-preview-icon"><i-icon name="megaphone" size="17"></i-icon></div>
+          <div class="ann-preview-body">
+            <div class="ann-preview-title-row">
+              <strong>{{ form.controls.titre.value || "Titre de l'annonce" }}</strong>
+              <span class="ann-badge ann-badge-pin" *ngIf="form.controls.epinglee.value">Épinglée</span>
+              <span class="ann-badge ann-badge-new">Nouveau</span>
+            </div>
+            <small>{{ today | date:'dd MMMM yyyy' }} · {{ auth.user?.prenom }} {{ auth.user?.nom }}</small>
+            <p>{{ form.controls.contenu.value || "Le contenu de l'annonce apparaîtra ici." }}</p>
+            <span class="ann-attachment" *ngIf="selectedFile"><i-icon name="paperclip" size="13"></i-icon> {{ selectedFile.name }}</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <article class="ann-card ann-table-card">
+      <h2 class="ann-section-title"><i-icon name="archive" size="14"></i-icon> Annonces publiées</h2>
+      <div class="ann-filter-row">
+        <div class="ann-search">
+          <i-icon name="search" size="16"></i-icon>
+          <input [value]="search" (input)="search = $any($event.target).value" placeholder="Rechercher une annonce..." />
+        </div>
+        <select [value]="statusFilter" (change)="statusFilter = $any($event.target).value">
+          <option value="ALL">Tous statuts</option>
+          <option value="PUBLISHED">Publiées</option>
+          <option value="PINNED">Épinglées</option>
+          <option value="ARCHIVED">Archivées</option>
+        </select>
+      </div>
+
+      <div class="ann-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Date</th>
+              <th>Pièce jointe</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredAnnouncements">
+              <td>
+                <div class="ann-title-cell">
+                  <div class="ann-title-row">
+                    <i-icon *ngIf="item.epinglee" name="pin" size="14" class="ann-pin-icon" title="Épinglée"></i-icon>
+                    <strong>{{ item.titre }}</strong>
+                  </div>
+                  <small>par {{ authorName(item.publiePar) }}</small>
+                </div>
+              </td>
+              <td>{{ item.publieAt | date:'dd MMMM yyyy' }}</td>
+              <td>
+                <a *ngIf="item.fichierUrl" class="ann-link" [href]="fileUrl(item.fichierUrl)" target="_blank">
+                  <i-icon name="paperclip" size="13"></i-icon> Voir
+                </a>
+                <span *ngIf="!item.fichierUrl" class="ann-muted">—</span>
+              </td>
+              <td>
+                <span class="ann-status" [class.ann-status-archived]="!item.actif">{{ item.actif ? 'Publiée' : 'Archivée' }}</span>
+              </td>
+              <td class="ann-row-actions">
+                <button type="button" (click)="setPinned(item, !item.epinglee)" [title]="item.epinglee ? 'Désépingler' : 'Épingler'">
+                  <i-icon name="pin" size="14"></i-icon>
+                </button>
+                <button type="button" (click)="toggleArchive(item)" [title]="item.actif ? 'Archiver' : 'Désarchiver'">
+                  <i-icon [name]="item.actif ? 'archive' : 'refresh-cw'" size="14"></i-icon>
+                </button>
+                <button type="button" (click)="delete(item)" title="Supprimer">
+                  <i-icon name="trash-2" size="14"></i-icon>
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="filteredAnnouncements.length === 0">
+              <td colspan="5" style="text-align: center; font-style: italic; color: #64748b; padding: 24px;">Aucune annonce</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </ng-container>
+
+  <ng-template #employeeAnnouncements>
+    <article class="ann-card ann-reader-filters">
+      <div class="ann-search">
+        <i-icon name="search" size="16"></i-icon>
+        <input [value]="search" (input)="search = $any($event.target).value" placeholder="Rechercher dans les annonces..." />
+      </div>
+      <div class="ann-segments">
+        <button type="button" [class.active]="audienceFilter === 'ALL'" (click)="audienceFilter = 'ALL'">Toutes</button>
+        <button type="button" [class.active]="audienceFilter === 'RECENT'" (click)="audienceFilter = 'RECENT'">Récentes</button>
+        <button type="button" [class.active]="audienceFilter === 'ATTACHED'" (click)="audienceFilter = 'ATTACHED'">Avec PJ</button>
+      </div>
+    </article>
+
+    <article class="ann-reader-card" *ngFor="let item of filteredAnnouncements">
+      <div class="ann-reader-icon"><i-icon name="megaphone" size="18"></i-icon></div>
+      <div class="ann-reader-body">
+        <div class="ann-reader-title">
+          <h2>{{ item.titre }}</h2>
+          <span class="ann-badge ann-badge-pin" *ngIf="item.epinglee">Épinglée</span>
+          <span class="ann-badge ann-badge-new" *ngIf="isNew(item)">Nouveau</span>
+        </div>
+        <small>{{ item.publieAt | date:'dd MMMM yyyy' }} · par {{ authorName(item.publiePar) }}</small>
+        <p>{{ item.contenu }}</p>
+        <a *ngIf="item.fichierUrl" class="ann-download" [href]="fileUrl(item.fichierUrl)" target="_blank">
+          <i-icon name="paperclip" size="14"></i-icon>
+          Voir
+        </a>
+      </div>
+    </article>
+
+    <p class="ann-empty" *ngIf="filteredAnnouncements.length === 0" style="text-align: center; font-style: italic; color: #64748b; padding: 24px;">Aucune annonce disponible.</p>
+  </ng-template>
+</section>

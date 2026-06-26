@@ -1,0 +1,56 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: rh-notification-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/DataRh?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Africa/Casablanca&characterEncoding=utf8
+    username: root
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: rh-notification
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${RH_MAIL_USERNAME:}
+    password: ${RH_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+app:
+  mail:
+    from: ${RH_MAIL_USERNAME:}
+    enabled: ${RH_MAIL_ENABLED:true}
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${server.port}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"

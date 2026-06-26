@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Bulletin de Paie</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: #1a1a2e;
+            background: #fff;
+            padding: 30px 36px;
+        }
+
+        /* ===== EN-TÊTE ===== */
+        .header {
+            border-bottom: 3px solid #1e3a5f;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+            display: table;
+            width: 100%;
+        }
+        .header-left { display: table-cell; vertical-align: middle; }
+        .header-right { display: table-cell; text-align: right; vertical-align: middle; }
+        .company-name { font-size: 20px; font-weight: bold; color: #1e3a5f; letter-spacing: 1px; }
+        .company-sub { font-size: 10px; color: #64748b; margin-top: 2px; }
+        .bulletin-title { font-size: 15px; font-weight: bold; color: #1e3a5f; letter-spacing: 2px; }
+        .bulletin-period { font-size: 11px; color: #475569; margin-top: 4px; }
+        .bulletin-date { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+        /* ===== BLOC SALARIÉ ===== */
+        .employee-block {
+            background: #f0f4f8;
+            border: 1px solid #d1dce8;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 18px;
+            display: table;
+            width: 100%;
+        }
+        .emp-col { display: table-cell; width: 50%; vertical-align: top; }
+        .emp-row { margin-bottom: 5px; }
+        .emp-label { color: #475569; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .emp-value { color: #1a1a2e; font-size: 11px; margin-top: 1px; }
+
+        /* ===== TABLEAU RUBRIQUES ===== */
+        .rubrique-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 18px;
+        }
+        .rubrique-table thead tr {
+            background: #1e3a5f;
+            color: #fff;
+        }
+        .rubrique-table th {
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            border: none;
+        }
+        .rubrique-table th.num { text-align: right; }
+        .rubrique-table tbody tr { border-bottom: 1px solid #e8edf2; }
+        .rubrique-table tbody tr:nth-child(even) { background: #f8fafc; }
+        .rubrique-table td { padding: 6px 10px; font-size: 10.5px; }
+        .rubrique-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .section-sep { background: #e2e8f0; }
+        .section-sep td { padding: 3px 10px; font-size: 9.5px; font-weight: bold; color: #475569; letter-spacing: 0.5px; text-transform: uppercase; }
+
+        /* ===== RÉSUMÉ ===== */
+        .summary-block {
+            display: table;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+        .summary-spacer { display: table-cell; width: 55%; }
+        .summary-table-wrap { display: table-cell; width: 45%; vertical-align: top; }
+        .summary-table { width: 100%; border-collapse: collapse; }
+        .summary-table td { padding: 5px 10px; font-size: 10.5px; border-bottom: 1px solid #e8edf2; }
+        .summary-table td.sum-label { color: #475569; }
+        .summary-table td.sum-value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .summary-table tr.total-row td { font-weight: bold; background: #f0f4f8; }
+        .summary-table tr.net-row td { background: #1e3a5f; color: #fff; font-weight: bold; font-size: 12px; }
+        .summary-table tr.net-row td.sum-value { font-size: 13px; }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            margin-top: 24px;
+            border-top: 1px solid #d1dce8;
+            padding-top: 10px;
+            font-size: 9px;
+            color: #94a3b8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<!-- EN-TÊTE -->
+<div class="header">
+    <div class="header-left">
+        <div class="company-name">TechCorp RH</div>
+        <div class="company-sub">Service des Ressources Humaines</div>
+    </div>
+    <div class="header-right">
+        <div class="bulletin-title">BULLETIN DE PAIE</div>
+        <div class="bulletin-period" th:text="'Période : ' + ${periode}">Période</div>
+        <div class="bulletin-date" th:text="'Date : ' + ${dateValidation}">Date</div>
+    </div>
+</div>
+
+<!-- BLOC SALARIÉ -->
+<div class="employee-block">
+    <div class="emp-col">
+        <div class="emp-row">
+            <div class="emp-label">Matricule</div>
+            <div class="emp-value" th:text="${payslip.employeeMatricule ?: 'N/A'}">-</div>
+        </div>
+        <div class="emp-row">
+            <div class="emp-label">Nom complet</div>
+            <div class="emp-value" th:text="${payslip.employeeFirstName + ' ' + payslip.employeeLastName}">-</div>
+        </div>
+        <div class="emp-row">
+            <div class="emp-label">Poste</div>
+            <div class="emp-value" th:text="${payslip.employeePoste ?: 'N/A'}">-</div>
+        </div>
+        <div class="emp-row">
+            <div class="emp-label">Département</div>
+            <div class="emp-value" th:text="${payslip.employeeDepartement ?: 'N/A'}">-</div>
+        </div>
+    </div>
+    <div class="emp-col">
+        <div class="emp-row">
+            <div class="emp-label">Date d'embauche</div>
+            <div class="emp-value" th:text="${hireDateFormatted ?: 'N/A'}">-</div>
+        </div>
+        <div class="emp-row">
+            <div class="emp-label">N° CNSS</div>
+            <div class="emp-value" th:text="${payslip.employeeCnss ?: 'N/A'}">-</div>
+        </div>
+        <div class="emp-row">
+            <div class="emp-label">RIB</div>
+            <div class="emp-value" th:text="${payslip.employeeRib ?: 'N/A'}">-</div>
+        </div>
+        <div class="emp-row" th:if="${payslip.employeeBankName != null and !#strings.isEmpty(payslip.employeeBankName)}">
+            <div class="emp-label">Banque</div>
+            <div class="emp-value" th:text="${payslip.employeeBankName}">-</div>
+        </div>
+    </div>
+</div>
+
+<!-- TABLEAU RUBRIQUES -->
+<table class="rubrique-table">
+    <thead>
+        <tr>
+            <th style="width:38%">Rubrique</th>
+            <th class="num" style="width:18%">Base (DH)</th>
+            <th class="num" style="width:12%">Taux (%)</th>
+            <th class="num" style="width:16%">Gains (DH)</th>
+            <th class="num" style="width:16%">Retenues (DH)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Séparateur GAINS -->
+        <tr class="section-sep">
+            <td colspan="5">Gains</td>
+        </tr>
+        <th:block th:each="line : ${gainLines}">
+            <tr th:if="${line.gainAmount != null and line.gainAmount > 0}">
+                <td th:text="${line.label}">-</td>
+                <td class="num" th:text="${line.baseAmount != null ? #numbers.formatDecimal(line.baseAmount, 1, 'COMMA', 2, 'POINT') : ''}">-</td>
+                <td class="num" th:text="${line.rate != null ? #numbers.formatDecimal(line.rate, 1, 'COMMA', 2, 'POINT') : ''}">-</td>
+                <td class="num" th:text="${#numbers.formatDecimal(line.gainAmount, 1, 'COMMA', 2, 'POINT')}">-</td>
+                <td></td>
+            </tr>
+        </th:block>
+        <!-- Séparateur RETENUES -->
+        <tr class="section-sep">
+            <td colspan="5">Retenues</td>
+        </tr>
+        <th:block th:each="line : ${deductionLines}">
+            <tr th:if="${line.deductionAmount != null and line.deductionAmount > 0}">
+                <td th:text="${line.label}">-</td>
+                <td class="num" th:text="${line.baseAmount != null ? #numbers.formatDecimal(line.baseAmount, 1, 'COMMA', 2, 'POINT') : ''}">-</td>
+                <td class="num" th:text="${line.rate != null ? #numbers.formatDecimal(line.rate, 1, 'COMMA', 2, 'POINT') : ''}">-</td>
+                <td></td>
+                <td class="num" th:text="${#numbers.formatDecimal(line.deductionAmount, 1, 'COMMA', 2, 'POINT')}">-</td>
+            </tr>
+        </th:block>
+    </tbody>
+</table>
+
+<!-- RÉSUMÉ TOTAUX -->
+<div class="summary-block">
+    <div class="summary-spacer"></div>
+    <div class="summary-table-wrap">
+        <table class="summary-table">
+            <tr>
+                <td class="sum-label">Total gains</td>
+                <td class="sum-value" th:text="${#numbers.formatDecimal(totalGains, 1, 'COMMA', 2, 'POINT') + ' DH'}">-</td>
+            </tr>
+            <tr>
+                <td class="sum-label">Total retenues</td>
+                <td class="sum-value" th:text="${#numbers.formatDecimal(totalDeductions, 1, 'COMMA', 2, 'POINT') + ' DH'}">-</td>
+            </tr>
+            <tr class="total-row">
+                <td class="sum-label">Salaire brut</td>
+                <td class="sum-value" th:text="${#numbers.formatDecimal(payslip.grossSalary, 1, 'COMMA', 2, 'POINT') + ' DH'}">-</td>
+            </tr>
+            <tr>
+                <td class="sum-label">Net imposable</td>
+                <td class="sum-value" th:text="${#numbers.formatDecimal(payslip.taxableNet, 1, 'COMMA', 2, 'POINT') + ' DH'}">-</td>
+            </tr>
+            <tr class="net-row">
+                <td class="sum-label">Net à payer</td>
+                <td class="sum-value" th:text="${#numbers.formatDecimal(payslip.netPay, 1, 'COMMA', 2, 'POINT') + ' DH'}">-</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+    Document généré automatiquement — TechCorp RH — Confidentiel
+</div>
+
+</body>
+</html>

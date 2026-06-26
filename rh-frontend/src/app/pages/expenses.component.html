@@ -1,0 +1,232 @@
+<section class="expenses-page">
+  <div class="expenses-toast" *ngIf="toast" [class.toast-error]="toastType === 'error'">
+    <svg *ngIf="toastType === 'success'" lucideCheckCircle2></svg>
+    <svg *ngIf="toastType === 'error'" lucideCircleAlert></svg>
+    <span>{{ toast }}</span>
+  </div>
+
+  <header class="expenses-header">
+    <div>
+      <h1>Gestion des dépenses professionnelles</h1>
+      <p>Suivi et historique des dépenses engagées par l’entreprise.</p>
+    </div>
+    <button class="primary-action" type="button" (click)="openCreate()">
+      <svg lucidePlus></svg>
+      <span>Nouvelle dépense</span>
+    </button>
+  </header>
+
+  <div class="stats-grid">
+    <article class="stat-card">
+      <span class="stat-icon stat-icon-blue"><svg lucideWallet></svg></span>
+      <div>
+        <p>Total des dépenses</p>
+        <strong>{{ summary.total | number:'1.0-2' }} MAD</strong>
+        <small>Depuis le début</small>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon stat-icon-green"><svg lucideCalendarDays></svg></span>
+      <div>
+        <p>Dépenses du mois</p>
+        <strong>{{ summary.monthTotal | number:'1.0-2' }} MAD</strong>
+        <small>{{ (today | date:'MMMM yyyy') || '' }}</small>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon stat-icon-purple"><svg lucideBadgeDollarSign></svg></span>
+      <div>
+        <p>Nombre de dépenses</p>
+        <strong>{{ summary.count }}</strong>
+        <small>{{ summary.count }} entrée{{ summary.count > 1 ? 's' : '' }}</small>
+      </div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon stat-icon-orange"><svg lucideTrendingUp></svg></span>
+      <div>
+        <p>Dernière dépense</p>
+        <strong>{{ summary.lastAmount | number:'1.0-2' }} MAD</strong>
+        <small>{{ summary.lastMotif || 'Aucune dépense' }}</small>
+      </div>
+    </article>
+  </div>
+
+  <section class="table-panel">
+    <div class="toolbar">
+      <label class="search-box">
+        <svg lucideSearch></svg>
+        <input type="search" [value]="search" (input)="setSearch($any($event.target).value)"
+          placeholder="Rechercher par motif ou note..." />
+      </label>
+      <select [value]="period" (change)="setPeriod($any($event.target).value)">
+        <option value="all">Toute période</option>
+        <option value="month">Ce mois</option>
+        <option value="previousMonth">Mois précédent</option>
+        <option value="year">Cette année</option>
+      </select>
+    </div>
+
+    <div class="error-banner" *ngIf="error">{{ error }}</div>
+    <div class="empty-state" *ngIf="!loading && filteredExpenses.length === 0">
+      Aucune dépense affichée.
+    </div>
+
+    <div class="table-scroll" *ngIf="filteredExpenses.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Motif</th>
+            <th>Montant</th>
+            <th>Date et Heure</th>
+            <th>Note</th>
+            <th>Justificatif</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let expense of filteredExpenses">
+            <td class="motif-cell">{{ expense.motif }}</td>
+            <td class="amount-cell">
+              <svg lucideCircleDollarSign></svg>
+              <strong>{{ expense.montant | number:'1.0-2' }} MAD</strong>
+            </td>
+            <td>{{ expense.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="note-cell">{{ expense.note || '—' }}</td>
+            <td>
+              <a *ngIf="expense.justificatifUrl" class="file-link" [href]="fileUrl(expense.justificatifUrl)"
+                target="_blank" rel="noopener">
+                <svg *ngIf="fileIcon(expense) === 'pdf'" lucideFileText></svg>
+                <svg *ngIf="fileIcon(expense) === 'image'" lucideImage></svg>
+                <span>{{ expense.justificatifOriginalName || 'Justificatif' }}</span>
+              </a>
+              <span *ngIf="!expense.justificatifUrl" class="muted">—</span>
+            </td>
+            <td>
+              <div class="row-actions">
+                <button type="button" title="Voir" (click)="openDetail(expense)"><svg lucideEye></svg></button>
+                <button type="button" title="Modifier" (click)="openEdit(expense)"><svg lucidePencil></svg></button>
+                <button type="button" title="Supprimer" class="danger-icon" (click)="confirmDelete(expense)">
+                  <svg lucideTrash2></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="table-footer">
+      <span>{{ filteredExpenses.length }} dépense{{ filteredExpenses.length > 1 ? 's' : '' }} affichée{{
+        filteredExpenses.length > 1 ? 's' : '' }}</span>
+      <span>Total affiché : <strong>{{ filteredTotal | number:'1.0-2' }} MAD</strong></span>
+    </footer>
+  </section>
+
+  <div class="drawer-backdrop" *ngIf="drawerMode" (click)="closeDrawer()"></div>
+  <aside class="expense-drawer" *ngIf="drawerMode" [class.detail-drawer]="drawerMode === 'detail'">
+    <header class="drawer-header">
+      <div>
+        <h2>{{ drawerTitle }}</h2>
+        <p *ngIf="drawerMode === 'create' || drawerMode === 'edit'">Renseignez les informations puis joignez le
+          justificatif.</p>
+        <p *ngIf="drawerMode === 'detail'">Détails de la dépense</p>
+      </div>
+      <button type="button" class="icon-close" (click)="closeDrawer()"><svg lucideX></svg></button>
+    </header>
+
+    <form class="drawer-body" *ngIf="drawerMode !== 'detail'" [formGroup]="form" (ngSubmit)="submit()">
+      <label class="form-field">
+        <span>Motif de la dépense <b>*</b></span>
+        <input formControlName="motif" placeholder="Ex. Achat fournitures bureau" />
+      </label>
+
+      <div class="two-cols">
+        <label class="form-field">
+          <span>Montant (MAD) <b>*</b></span>
+          <div class="input-suffix">
+            <input type="number" min="0" step="0.01" formControlName="montant" placeholder="0.00" />
+            <small>MAD</small>
+          </div>
+        </label>
+        <label class="form-field">
+          <span>Date et heure <b>*</b></span>
+          <input type="datetime-local" formControlName="dateHeure" />
+        </label>
+      </div>
+
+      <label class="form-field">
+        <span>Note (optionnel)</span>
+        <textarea rows="4" formControlName="note" placeholder="Précisions sur la dépense..."></textarea>
+      </label>
+
+      <div class="form-field">
+        <span>Justificatif</span>
+        <label class="upload-zone"
+          *ngIf="drawerMode === 'create' || (!selected?.justificatifUrl || removeJustificatif)">
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onFileSelected($event)" />
+          <svg lucideUpload></svg>
+          <strong>{{ selectedFile?.name || 'Téléverser un justificatif' }}</strong>
+          <small>PDF, JPG ou PNG – 5 Mo max.</small>
+        </label>
+
+        <div class="existing-file" *ngIf="drawerMode === 'edit' && selected?.justificatifUrl && !removeJustificatif">
+          <span class="file-box"><svg lucideFileText></svg></span>
+          <div>
+            <strong>{{ selected?.justificatifOriginalName || 'Justificatif' }}</strong>
+            <small>Document joint</small>
+          </div>
+          <button type="button" (click)="clearExistingFile()">Retirer</button>
+        </div>
+      </div>
+
+      <div class="drawer-footer">
+        <button class="secondary-action" type="button" (click)="closeDrawer()">Annuler</button>
+        <button class="primary-action" type="submit" [disabled]="saving">
+          <svg lucideCheckCircle2></svg>
+          <span>{{ drawerMode === 'edit' ? 'Enregistrer' : 'Ajouter la dépense' }}</span>
+        </button>
+      </div>
+    </form>
+
+    <div class="drawer-body" *ngIf="drawerMode === 'detail' && selected">
+      <div class="detail-grid">
+        <article>
+          <span>Montant</span>
+          <strong>{{ selected.montant | number:'1.0-2' }} MAD</strong>
+        </article>
+        <article>
+          <span>Date / Heure</span>
+          <strong>{{ selected.dateHeure | date:'dd/MM/yyyy HH:mm' }}</strong>
+        </article>
+      </div>
+      <div class="detail-note">
+        <span>Note</span>
+        <p>{{ selected.note || '—' }}</p>
+      </div>
+      <div class="detail-file">
+        <span>Justificatif</span>
+        <div class="justificatif-preview">
+          <svg *ngIf="fileIcon(selected) === 'pdf'" lucideFileText></svg>
+          <svg *ngIf="fileIcon(selected) === 'image'" lucideImage></svg>
+          <strong>{{ selected.justificatifOriginalName || 'Aucun justificatif' }}</strong>
+          <a *ngIf="selected.justificatifUrl" [href]="fileUrl(selected.justificatifUrl)" target="_blank" rel="noopener">
+            <svg lucideEye></svg>
+            Consulter le justificatif
+          </a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="delete-backdrop" *ngIf="deleteTarget">
+    <section class="delete-modal">
+      <h2>Supprimer cette dépense ?</h2>
+      <p>« {{ deleteTarget.motif }} » – {{ deleteTarget.montant | number:'1.0-2' }} MAD. Cette action est définitive.
+      </p>
+      <div>
+        <button type="button" class="secondary-action" (click)="cancelDelete()">Annuler</button>
+        <button type="button" class="delete-action" (click)="deleteExpense()">Supprimer</button>
+      </div>
+    </section>
+  </div>
+</section>

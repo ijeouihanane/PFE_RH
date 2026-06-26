@@ -1,0 +1,310 @@
+<div class="appraisal-page" [class.editor-mode]="editorOpen">
+  <!-- Toast notification banner -->
+  <div class="toast-container" *ngIf="toast" [attr.data-type]="toast.type">
+    <span class="toast-message">{{ toast.message }}</span>
+  </div>
+
+  <ng-container *ngIf="!editorOpen; else editor">
+    <header class="page-header">
+      <div>
+        <h1>Appréciations de mon équipe</h1>
+        <p>Préparez les évaluations annuelles, suivez leur validation et relancez votre équipe.</p>
+      </div>
+      <button class="primary" type="button" (click)="startNew()">+ Nouvelle appréciation</button>
+    </header>
+
+    <!-- Summary stats cards -->
+    <div class="stats-cards">
+      <div class="stats-card">
+        <div class="card-content">
+          <small>Équipe</small>
+          <strong>{{ stats.teamCount }}</strong>
+          <span>collaborateurs</span>
+        </div>
+        <div class="card-icon-wrapper team">
+          <svg lucideUsers class="card-icon"></svg>
+        </div>
+      </div>
+
+      <div class="stats-card">
+        <div class="card-content">
+          <small>Brouillons</small>
+          <strong>{{ stats.draftCount }}</strong>
+          <span>à finaliser</span>
+        </div>
+        <div class="card-icon-wrapper draft">
+          <svg lucideFileEdit class="card-icon"></svg>
+        </div>
+      </div>
+
+      <div class="stats-card">
+        <div class="card-content">
+          <small>En attente</small>
+          <strong>{{ stats.pendingCount }}</strong>
+          <span>validation employé/RH</span>
+        </div>
+        <div class="card-icon-wrapper pending">
+          <svg lucideClock3 class="card-icon"></svg>
+        </div>
+      </div>
+
+      <div class="stats-card">
+        <div class="card-content">
+          <small>Validées</small>
+          <strong>{{ stats.validatedCount }}</strong>
+          <span>cycle 2026</span>
+        </div>
+        <div class="card-icon-wrapper validated">
+          <svg lucideCheckCircle2 class="card-icon"></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Local toolbar -->
+    <div class="list-toolbar">
+      <div class="search-wrapper">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="search-icon"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.602 10.602Z" /></svg>
+        <input type="text" [(ngModel)]="searchText" placeholder="Rechercher un collaborateur, un département...">
+      </div>
+      <div class="filter-group">
+        <button type="button" [class.active]="activeFilter === 'TOUS'" (click)="activeFilter = 'TOUS'">Tous</button>
+        <button type="button" [class.active]="activeFilter === 'BROUILLON'" (click)="activeFilter = 'BROUILLON'">Brouillons</button>
+        <button type="button" [class.active]="activeFilter === 'EN_ATTENTE'" (click)="activeFilter = 'EN_ATTENTE'">En attente</button>
+        <button type="button" [class.active]="activeFilter === 'VALIDEE_RH'" (click)="activeFilter = 'VALIDEE_RH'">Validées</button>
+      </div>
+    </div>
+
+    <!-- Appraisals list panel -->
+    <section class="panel list-panel">
+      <div class="empty" *ngIf="filteredAppraisals.length === 0">
+        Aucune appréciation trouvée.
+      </div>
+      
+      <div class="table-scroll" *ngIf="filteredAppraisals.length > 0">
+        <table class="rich-table">
+          <thead>
+            <tr>
+              <th>Collaborateur</th>
+              <th>Période</th>
+              <th>Département</th>
+              <th>Positionnement RH</th>
+              <th>Avancement du workflow</th>
+              <th>Statut</th>
+              <th class="action-column">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredAppraisals">
+              <td>
+                <div class="collaborator-info">
+                  <div class="avatar-circle">{{ getInitials(item.employeeName) }}</div>
+                  <div class="name-details">
+                    <span class="full-name">{{ item.employeeName }}</span>
+                    <span class="job-title" *ngIf="item.employeePoste">{{ item.employeePoste }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="period-info">
+                  <span class="period-text">{{ item.periode }}</span>
+                  <span class="time-relative">{{ formatLastUpdated(item) }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="dept-badge">{{ item.employeeDepartment || '—' }}</span>
+              </td>
+              <td>
+                <span class="pos-badge" [ngClass]="getPositioningClass(item.positioningCategory)">
+                  <span class="badge-dot"></span>
+                  {{ item.positioningCategory || 'À déterminer' }}
+                </span>
+              </td>
+              <td>
+                <div class="progression-bar-container">
+                  <div class="progression-bar-bg">
+                    <div class="progression-bar-fill" [style.width.%]="getProgression(item.statut)"></div>
+                  </div>
+                  <span class="progression-text">{{ getProgression(item.statut) }}%</span>
+                </div>
+              <td>
+                <span class="status-pill" [attr.data-status]="item.statut">
+                  <svg *ngIf="item.statut === 'BROUILLON'" lucideFileEdit class="status-icon"></svg>
+                  <svg *ngIf="item.statut === 'SOUMIS'" lucideClock3 class="status-icon"></svg>
+                  <svg *ngIf="item.statut === 'PRISE_CONNAISSANCE'" lucideAlertCircle class="status-icon"></svg>
+                  <svg *ngIf="item.statut === 'VALIDEE_RH'" lucideCheckCircle2 class="status-icon"></svg>
+                  {{ statusLabel(item.statut) }}
+                </span>
+              </td>
+              <td class="action-column">
+                <button *ngIf="item.statut === 'BROUILLON'" class="primary compact reprise-btn" type="button" (click)="editDraft(item)">
+                  Reprendre
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </ng-container>
+
+  <ng-template #editor>
+    <div class="stepper">
+      <div class="step" [class.active]="step === 1" [class.done]="step > 1"><span>1</span><b>Contexte & grille</b></div>
+      <div class="line" [class.done]="step > 1"></div>
+      <div class="step" [class.active]="step === 2" [class.done]="step > 2"><span>2</span><b>Performance & potentiel</b></div>
+      <div class="line" [class.done]="step > 2"></div>
+      <div class="step" [class.active]="step === 3"><span>3</span><b>Synthèse & validation</b></div>
+    </div>
+
+    <main class="workflow-body">
+      <section *ngIf="step === 1">
+        <div class="panel employee-picker">
+          <div class="employee-picker-grid">
+            <div class="picker-field">
+              <label for="employee">Employé à évaluer</label>
+              <select id="employee" [(ngModel)]="selectedEmployeeId" (ngModelChange)="onEmployeeChange()" [disabled]="!!draftId">
+                <option [ngValue]="0">— Sélectionner un employé —</option>
+                <option *ngFor="let employee of employees" [ngValue]="employee.id">
+                  {{ employee.prenom }} {{ employee.nom }} · {{ employee.poste || employee.role }} ({{ employee.departement || 'Sans département' }})
+                </option>
+              </select>
+            </div>
+            <div class="picker-field period-field" *ngIf="context">
+              <label for="period">Période</label>
+              <input id="period" [(ngModel)]="period" (ngModelChange)="generatedSummary = ''" placeholder="Annuel 2026">
+            </div>
+          </div>
+          <small>Le contexte et la grille sont chargés automatiquement après sélection.</small>
+        </div>
+
+        <ng-container *ngIf="context as ctx; else placeholderState">
+          <section class="panel context-card">
+            <div class="avatar">{{ ctx.employee.prenom[0] }}{{ ctx.employee.nom[0] }}</div>
+            <div><small>Nom complet</small><strong>{{ ctx.employee.prenom }} {{ ctx.employee.nom }}</strong></div>
+            <div><small>Poste</small><strong>{{ ctx.employee.poste || 'Non renseigné' }}</strong></div>
+            <div><small>Département</small><strong>{{ ctx.employee.departement || 'Non renseigné' }}</strong></div>
+            <div><small>Type de contrat</small><strong>{{ ctx.employee.typeContrat || 'Non renseigné' }}</strong></div>
+            <div><small>Ancienneté</small><strong>{{ ctx.anciennete }}</strong></div>
+            <div><small>Dernière appréciation</small><strong>{{ ctx.previousAppraisal ? ctx.previousAppraisal.periode + ' · ' + (ctx.previousAppraisal.positioningCategory || '') : 'Aucune appréciation précédente' }}</strong></div>
+            <div class="grid-label">Grille appliquée automatiquement <span>{{ ctx.gridLabel }}</span></div>
+          </section>
+
+          <h2 class="section-heading">Grille d’évaluation</h2>
+          <article class="criterion panel" *ngFor="let criterion of ctx.criteria">
+            <h3>{{ criterion.label }}</h3>
+            <p>{{ criterion.description }}</p>
+            <div class="level-control">
+              <button
+                *ngFor="let level of levels"
+                type="button"
+                [class.selected]="answers[criterion.id].level === level.value"
+                [attr.data-level]="level.value"
+                (click)="selectLevel(criterion.id, level.value)">
+                {{ level.label }}
+              </button>
+            </div>
+            <textarea
+              [(ngModel)]="answers[criterion.id].comment"
+              [class.required-comment]="answers[criterion.id].level === 'A_RENFORCER' && !answers[criterion.id].comment.trim()"
+              [placeholder]="answers[criterion.id].level === 'A_RENFORCER' ? 'Commentaire obligatoire — précisez les axes d’amélioration.' : 'Commentaire optionnel.'">
+            </textarea>
+            <small class="comment-warning" *ngIf="answers[criterion.id].level === 'A_RENFORCER' && !answers[criterion.id].comment.trim()">
+              Un commentaire est obligatoire pour un critère à renforcer.
+            </small>
+          </article>
+        </ng-container>
+
+        <ng-template #placeholderState>
+          <div class="empty panel dashed-placeholder">
+            Sélectionnez un employé pour afficher son contexte et débuter l’évaluation.
+          </div>
+
+          <h2 class="section-heading">Grille d’évaluation</h2>
+          <article class="criterion panel disabled">
+            <h3>Qualité du code et des livrables</h3>
+            <p>Fiabilité, lisibilité, maintenabilité du code et qualité des travaux livrés.</p>
+            <div class="level-control">
+              <button type="button" disabled>À renforcer</button>
+              <button type="button" disabled>En progression</button>
+              <button type="button" disabled>Conforme</button>
+              <button type="button" disabled>Point fort</button>
+            </div>
+            <textarea disabled placeholder="Commentaire optionnel."></textarea>
+          </article>
+
+          <article class="criterion panel disabled">
+            <h3>Résolution de problèmes</h3>
+            <p>Capacité à analyser les incidents, proposer des solutions et agir avec méthode.</p>
+            <div class="level-control">
+              <button type="button" disabled>À renforcer</button>
+              <button type="button" disabled>En progression</button>
+              <button type="button" disabled>Conforme</button>
+              <button type="button" disabled>Point fort</button>
+            </div>
+            <textarea disabled placeholder="Commentaire optionnel."></textarea>
+          </article>
+        </ng-template>
+      </section>
+
+      <section class="performance-layout" *ngIf="step === 2">
+        <div>
+          <div class="panel choice-group">
+            <h2>Performance actuelle</h2>
+            <button *ngFor="let option of performances" type="button" [class.selected]="performance === option.value" (click)="selectPerformance(option.value)">
+              <strong>{{ option.title }}</strong><span>{{ option.description }}</span>
+            </button>
+          </div>
+          <div class="panel choice-group">
+            <h2>Potentiel d’évolution</h2>
+            <button *ngFor="let option of potentials" type="button" [class.selected]="potential === option.value" (click)="selectPotential(option.value)">
+              <strong>{{ option.title }}</strong><span>{{ option.description }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel matrix-panel">
+          <div class="matrix-title"><h2>Matrice 9-Box</h2><span>Performance × Potentiel</span></div>
+          <div class="matrix">
+            <div class="axis-label"></div><div class="axis-label">À confirmer</div><div class="axis-label">Évolutif</div><div class="axis-label">Fort potentiel</div>
+            <ng-container *ngFor="let perf of ['SUPERIEURE', 'CONFORME', 'A_RENFORCER']">
+              <div class="row-label">{{ perf === 'SUPERIEURE' ? 'Supérieure' : perf === 'CONFORME' ? 'Conforme' : 'À renforcer' }}</div>
+              <div class="matrix-cell" *ngFor="let pot of ['A_CONFIRMER', 'EVOLUTIF', 'FORT']" [class.active]="isActiveCell($any(perf), $any(pot))">
+                <strong>{{ category($any(perf), $any(pot)) }}</strong>
+                <small *ngIf="isActiveCell($any(perf), $any(pot))">Actuel</small>
+              </div>
+            </ng-container>
+          </div>
+          <div class="current-category">Catégorie actuelle : <strong>{{ currentCategory }}</strong></div>
+        </div>
+      </section>
+
+      <section *ngIf="step === 3">
+        <div class="panel">
+          <div class="section-title-row"><h2>Synthèse automatique</h2><span>Modifiable avant soumission</span></div>
+          <textarea class="summary" [(ngModel)]="generatedSummary"></textarea>
+        </div>
+        <div class="panel">
+          <h2>Commentaire manager <span>(optionnel)</span></h2>
+          <textarea [(ngModel)]="managerComment" placeholder="Ajoutez un message contextuel pour l’employé ou la RH…"></textarea>
+        </div>
+        <div class="panel">
+          <h2>Workflow de validation</h2>
+          <div class="workflow-status">
+            <div class="actor active"><b>Manager</b><span>Brouillon — prêt à soumettre</span></div>
+            <div class="actor"><b>Employé</b><span>En attente</span></div>
+            <div class="actor locked"><b>RH</b><span>Verrouillé</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="workflow-actions">
+      <button class="secondary back-icon-btn" type="button" (click)="back()" [disabled]="step === 1" aria-label="Étape précédente" title="Étape précédente">←</button>
+      <div>
+        <button class="secondary" type="button" (click)="saveDraft({ closeWorkflow: true })" [disabled]="loading || !context">Enregistrer brouillon</button>
+        <button *ngIf="step < 3" class="primary" type="button" (click)="next()" [disabled]="loading || !context">Suivant</button>
+        <button *ngIf="step === 3" class="primary" type="button" (click)="submit()" [disabled]="loading">Soumettre l’appréciation</button>
+      </div>
+    </footer>
+  </ng-template>
+</div>

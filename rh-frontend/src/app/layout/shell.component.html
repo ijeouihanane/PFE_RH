@@ -1,0 +1,74 @@
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">
+        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 2 L4 9 V23 L16 30 L16 16 L4 9 Z" fill="#3b82f6" />
+          <path d="M16 2 L28 9 L16 16 L16 9 Z" fill="#ffffff" />
+          <path d="M16 16 L28 9 V23 L16 30 Z" fill="#ffffff" />
+          <path d="M16 9 L21.5 12.2 V18.6 L16 21.8 L10.5 18.6 V12.2 Z" fill="#0b1630" />
+        </svg>
+      </div>
+      <div class="title">TechCorp</div>
+    </div>
+
+    <nav class="nav">
+      <ng-container *ngFor="let it of items">
+        <a *ngIf="visible(it)" [routerLink]="it.path" routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: !!it.exact }" class="nav-item">
+          <i-icon [name]="it.icon" size="17"></i-icon>
+          <span>{{ it.label }}</span>
+        </a>
+      </ng-container>
+    </nav>
+
+    <div class="sidebar-footer" *ngIf="auth.user as u">
+      <div class="user">
+        <div class="name">{{ u.prenom }} {{ u.nom }}</div>
+        <div class="role">{{ u.role }}</div>
+      </div>
+      <button class="logout-btn" type="button" (click)="auth.logout()">
+        <i-icon name="log-out" size="15"></i-icon>
+        <span>Déconnexion</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="floating-notif" *ngIf="auth.user && !isDashboardRoute()" [class.employees-notif]="isEmployeesRoute()" [class.accounts-notif]="isAccountsRoute()">
+      <div class="notification-anchor">
+        <button class="notification-btn" type="button" (click)="toggleNotifications()">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+            </path>
+          </svg>
+          <strong *ngIf="unreadNotifications">{{ unreadNotifications }}</strong>
+        </button>
+        <section class="notification-panel" *ngIf="notificationsOpen" (click)="$event.stopPropagation()">
+          <div class="notification-head">
+            <h2>Notifications</h2>
+            <button type="button" (click)="notificationsOpen = false">×</button>
+          </div>
+          <div class="notification-list">
+            <article *ngFor="let n of notifications" class="notification-item" [class.unread]="!n.lu"
+              [ngClass]="(n.type || '').toLowerCase()" (click)="markNotificationRead(n)">
+              <span></span>
+              <div>
+                <b>{{ n.titre }}</b>
+                <p>{{ n.message }}</p>
+                <small>{{ notificationAge(n.createdAt) }}</small>
+              </div>
+            </article>
+            <p class="notification-empty" *ngIf="notifications.length === 0">Aucune notification.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="content" [class.messaging-content]="isMessagingRoute()"
+      [class.dashboard-content]="isDashboardRoute()">
+      <router-outlet />
+    </section>
+  </div>
+</div>

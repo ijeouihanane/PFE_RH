@@ -1,0 +1,379 @@
+<section class="employees-page">
+  <header class="page-header">
+    <div>
+      <h1>Gestion des employés</h1>
+      <p>Profils collaborateurs - Employés & Managers.</p>
+    </div>
+  </header>
+
+  <main class="employees-content">
+    <div class="overview-line">
+      <span></span>
+      Vue d'ensemble
+      <button class="btn primary add-btn" type="button" (click)="openCreate()">
+        <i-icon name="user-plus" size="15"></i-icon>
+        Ajouter un employé
+      </button>
+    </div>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <span class="stat-icon blue"><i-icon name="users" size="18"></i-icon></span>
+        <div>
+          <small>Collaborateurs actifs</small>
+          <strong>{{ activeCount }}</strong>
+        </div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon purple"><i-icon name="briefcase" size="18"></i-icon></span>
+        <div>
+          <small>Managers</small>
+          <strong>{{ managerCount }}</strong>
+        </div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon cyan"><i-icon name="user" size="18"></i-icon></span>
+        <div>
+          <small>Employés</small>
+          <strong>{{ employeeCount }}</strong>
+        </div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon orange"><i-icon name="calendar" size="18"></i-icon></span>
+        <div>
+          <small>Contrats CDD</small>
+          <strong>{{ cddCount }}</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="surface">
+      <div class="filters">
+        <label class="search">
+          <i-icon class="search-i" name="search" size="15"></i-icon>
+          <input [(ngModel)]="search" type="search" placeholder="Rechercher nom ou matricule..." />
+        </label>
+        <select [(ngModel)]="roleFilter">
+          <option value="ALL">Tous les rôles</option>
+          <option value="EMPLOYEE">Employés</option>
+          <option value="MANAGER">Managers</option>
+        </select>
+        <select [(ngModel)]="departmentFilter">
+          <option value="ALL">Tous départements</option>
+          <option *ngFor="let department of departmentOptions" [value]="department">{{ department }}</option>
+        </select>
+        <select [(ngModel)]="contractFilter">
+          <option value="ALL">Tous contrats</option>
+          <option value="CDI">CDI</option>
+          <option value="CDD">CDD</option>
+        </select>
+        <select [(ngModel)]="statusFilter">
+          <option value="ALL">Tous statuts</option>
+          <option value="ACTIVE">Actifs</option>
+          <option value="INACTIVE">Inactifs</option>
+        </select>
+        <button class="icon-button refresh" type="button" (click)="resetFilters()" title="Actualiser">
+          <i-icon name="refresh-cw" size="15"></i-icon>
+        </button>
+      </div>
+
+      <div class="error" *ngIf="error">{{ error }}</div>
+
+      <div class="table-wrap">
+        <table class="employees-table">
+          <colgroup>
+            <col class="col-person" />
+            <col class="col-job" />
+            <col class="col-role" />
+            <col class="col-contract" />
+            <col class="col-manager" />
+            <col class="col-status" />
+            <col class="col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Collaborateur</th>
+              <th>Poste / Département</th>
+              <th>Rôle</th>
+              <th>Contrat</th>
+              <th>Manager</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of filteredEmployees" (click)="openDetail(e)">
+              <td>
+                <div class="person-cell">
+                  <span class="avatar" [class]="'avatar ' + avatarTone(e)">{{ initials(e) }}</span>
+                  <span>
+                    <strong>{{ fullName(e) }}</strong>
+                    <small>{{ e.matricule || 'Matricule non renseigné' }}</small>
+                  </span>
+                </div>
+              </td>
+              <td>
+                <span class="main-text">{{ e.poste || 'Poste non renseigné' }}</span>
+                <small>{{ e.departement || 'Département non renseigné' }}</small>
+              </td>
+              <td>
+                <span class="pill" [class.role-manager]="e.role === 'MANAGER'" [class.role-employee]="e.role === 'EMPLOYEE'">
+                  <i-icon [name]="e.role === 'MANAGER' ? 'briefcase' : 'users'" size="12"></i-icon>
+                  {{ roleLabel(e.role) }}
+                </span>
+              </td>
+              <td><span class="pill contract" [class.contract-cdd]="e.typeContrat === 'CDD'">{{ e.typeContrat || 'CDI' }}</span></td>
+              <td>{{ managerName(e.managerId) }}</td>
+              <td>
+                <span class="pill status" [class.inactive]="e.actif === false">
+                  <span></span>{{ statusLabel(e) }}
+                </span>
+              </td>
+              <td class="actions" (click)="$event.stopPropagation()">
+                <button class="icon-button action" type="button" title="Voir" (click)="openDetail(e)">
+                  <i-icon name="eye" size="15"></i-icon>
+                </button>
+                <button class="icon-button action" type="button" title="Modifier" (click)="openEdit(e)">
+                  <i-icon name="edit-2" size="15"></i-icon>
+                </button>
+                <button class="icon-button action danger" type="button" title="Désactiver" *ngIf="e.actif !== false" (click)="askDeactivate(e)">
+                  <i-icon name="lock" size="15"></i-icon>
+                </button>
+                <button class="icon-button action" type="button" title="Réactiver" *ngIf="e.actif === false" (click)="askDeactivate(e)"><!-- Change this to reactivate logic if available -->
+                  <i-icon name="unlock" size="15"></i-icon>
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="filteredEmployees.length === 0">
+              <td colspan="7" class="empty">Aucun collaborateur ne correspond aux filtres.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" *ngIf="toast" [class.error-toast]="toast.type === 'error'">
+    <i-icon [name]="toast.type === 'success' ? 'check-circle' : 'alert-triangle'" size="17"></i-icon>
+    {{ toast.message }}
+  </div>
+</section>
+
+<div class="drawer-backdrop" *ngIf="drawerMode" (click)="closeDrawer()"></div>
+
+<aside class="employee-drawer details-drawer" *ngIf="drawerMode === 'detail' && selectedEmployee as emp">
+  <header class="drawer-header detail-header">
+    <div class="profile-head">
+      <span class="avatar big" [class]="'avatar big ' + avatarTone(emp)">{{ initials(emp) }}</span>
+      <div>
+        <h2>{{ fullName(emp) }}</h2>
+        <p>{{ emp.poste || 'Poste non renseigné' }} · {{ emp.departement || 'Département non renseigné' }}</p>
+        <div class="drawer-badges">
+          <span class="pill role-employee" [class.role-manager]="emp.role === 'MANAGER'">{{ roleLabel(emp.role) }}</span>
+          <span class="pill contract" [class.contract-cdd]="emp.typeContrat === 'CDD'">{{ emp.typeContrat || 'CDI' }}</span>
+          <span class="pill status" [class.inactive]="emp.actif === false"><span></span>{{ statusLabel(emp) }}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="drawer-scroll">
+    <p class="detail-section-title">INFORMATIONS PERSONNELLES</p>
+    <section class="detail-card">
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="mail" size="15"></i-icon></span>
+        <span class="detail-label">Email</span>
+        <span class="detail-value">{{ emp.email }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="phone" size="15"></i-icon></span>
+        <span class="detail-label">Téléphone</span>
+        <span class="detail-value">{{ fieldValue(emp.telephone) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="map-pin" size="15"></i-icon></span>
+        <span class="detail-label">Adresse</span>
+        <span class="detail-value">{{ fieldValue(emp.adresse) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="credit-card" size="15"></i-icon></span>
+        <span class="detail-label">CIN</span>
+        <span class="detail-value">{{ fieldValue(emp.cin) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="credit-card" size="15"></i-icon></span>
+        <span class="detail-label">CNSS</span>
+        <span class="detail-value">{{ fieldValue(emp.cnss) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="database" size="15"></i-icon></span>
+        <span class="detail-label">RIB</span>
+        <span class="detail-value">{{ fieldValue(emp.rib) }}</span>
+      </div>
+      <div class="detail-row detail-row-last">
+        <span class="detail-icon"><i-icon name="users" size="15"></i-icon></span>
+        <span class="detail-label">Nationalité</span>
+        <span class="detail-value">{{ fieldValue(emp.nationalite) }}</span>
+      </div>
+    </section>
+
+    <p class="detail-section-title">INFORMATIONS PROFESSIONNELLES</p>
+    <section class="detail-card">
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="file-text" size="15"></i-icon></span>
+        <span class="detail-label">Matricule</span>
+        <span class="detail-value">{{ fieldValue(emp.matricule) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="briefcase" size="15"></i-icon></span>
+        <span class="detail-label">Département</span>
+        <span class="detail-value">{{ fieldValue(emp.departement) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="briefcase" size="15"></i-icon></span>
+        <span class="detail-label">Poste</span>
+        <span class="detail-value">{{ fieldValue(emp.poste) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="users" size="15"></i-icon></span>
+        <span class="detail-label">Manager</span>
+        <span class="detail-value">{{ managerName(emp.managerId) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-icon"><i-icon name="calendar" size="15"></i-icon></span>
+        <span class="detail-label">Type contrat</span>
+        <span class="detail-value">{{ emp.typeContrat || 'CDI' }}</span>
+      </div>
+      <div class="detail-row detail-row-last">
+        <span class="detail-icon"><i-icon name="calendar" size="15"></i-icon></span>
+        <span class="detail-label">Date embauche</span>
+        <span class="detail-value">{{ fieldValue(emp.dateEmbauche) }}</span>
+      </div>
+    </section>
+  </div>
+
+  <footer class="drawer-footer">
+    <button class="btn primary" type="button" (click)="openEdit(emp)">
+      <i-icon name="edit-2" size="15"></i-icon>
+      Modifier
+    </button>
+  </footer>
+</aside>
+
+<aside class="employee-drawer form-drawer" *ngIf="drawerMode === 'create'">
+  <ng-container *ngTemplateOutlet="employeeForm; context: { mode: 'create' }"></ng-container>
+</aside>
+
+<aside class="employee-drawer form-drawer" *ngIf="drawerMode === 'edit' && selectedEmployee">
+  <ng-container *ngTemplateOutlet="employeeForm; context: { mode: 'edit' }"></ng-container>
+</aside>
+
+<ng-template #employeeForm let-mode="mode">
+  <header class="drawer-header form-header">
+    <div>
+      <h2>{{ mode === 'create' ? 'Ajouter un employé' : 'Modifier le profil' }}</h2>
+      <p>{{ mode === 'create' ? "Création d'un nouveau collaborateur" : fullName(selectedEmployee) + ' · ' + (selectedEmployee?.matricule || 'Matricule non renseigné') }}</p>
+    </div>
+  </header>
+
+  <div class="stepper">
+    <span [class.active]="formStep === 1" [class.done]="isStepDone(1)">1</span><b [class.active-label]="formStep === 1">Identité</b>
+    <i-icon name="chevron-right" size="14"></i-icon>
+    <span [class.active]="formStep === 2" [class.done]="isStepDone(2)">2</span><b [class.active-label]="formStep === 2">Poste</b>
+    <i-icon name="chevron-right" size="14"></i-icon>
+    <span [class.active]="formStep === 3">3</span><b [class.active-label]="formStep === 3">Contrat</b>
+  </div>
+
+  <form class="employee-form" [formGroup]="mode === 'create' ? form : editForm" (ngSubmit)="mode === 'create' ? create() : saveEdit()">
+    <div class="drawer-scroll form-scroll">
+      <div class="form-grid" *ngIf="formStep === 1">
+        <label><span>Prénom</span><input formControlName="prenom" /></label>
+        <label><span>Nom</span><input formControlName="nom" /></label>
+        <label>
+          <span>Email</span>
+          <input formControlName="email" [readonly]="mode === 'edit'" />
+          <em>{{ mode === 'edit' ? 'Identifiant de connexion - non modifiable' : 'Sera utilisé comme identifiant de connexion' }}</em>
+        </label>
+        <label><span>Téléphone</span><input formControlName="telephone" /></label>
+        <label><span>CIN</span><input formControlName="cin" /></label>
+        <label><span>Nationalité</span><input formControlName="nationalite" /></label>
+      </div>
+
+      <div class="form-grid" *ngIf="formStep === 2">
+        <label><span>Matricule</span><input formControlName="matricule" placeholder="EMP-XXX" /></label>
+        <label>
+          <span>Département</span>
+          <select formControlName="departement">
+            <option value="">-- Choisir --</option>
+            <option *ngFor="let department of departmentOptions" [value]="department">{{ department }}</option>
+          </select>
+        </label>
+        <label><span>Poste</span><input formControlName="poste" /></label>
+        <label>
+          <span>Rôle</span>
+          <select formControlName="role">
+            <option value="EMPLOYEE">Employé</option>
+            <option value="MANAGER">Manager</option>
+          </select>
+        </label>
+        <label>
+          <span>Manager</span>
+          <select formControlName="managerId">
+            <option [ngValue]="null">— Aucun —</option>
+            <option *ngFor="let m of managers" [ngValue]="m.id">{{ fullName(m) }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="form-grid" *ngIf="formStep === 3">
+        <label>
+          <span>Type de contrat</span>
+          <select formControlName="typeContrat">
+            <option value="CDI">CDI</option>
+            <option value="CDD">CDD</option>
+          </select>
+        </label>
+        <label><span>Date d'embauche</span><input type="date" formControlName="dateEmbauche" /></label>
+        <label><span>CNSS</span><input formControlName="cnss" /></label>
+        <label><span>RIB</span><input formControlName="rib" /></label>
+        <label><span>Ville</span><input formControlName="ville" /></label>
+        <label><span>Adresse</span><input formControlName="adresse" /></label>
+      </div>
+
+      <p class="form-error" *ngIf="formError">{{ formError }}</p>
+    </div>
+
+    <footer class="drawer-footer form-footer">
+      <button class="btn light cancel-btn" type="button" (click)="closeDrawer()">Annuler</button>
+      <div class="form-footer-right">
+        <button class="btn back-btn" type="button" *ngIf="formStep > 1" (click)="previousStep()">
+          ← Retour
+        </button>
+        <button class="btn primary" type="button" *ngIf="formStep < 3" (click)="nextStep()">
+          Suivant →
+        </button>
+        <button class="btn primary submit-btn" type="submit" *ngIf="formStep === 3">
+          {{ mode === 'create' ? 'Créer le profil' : 'Enregistrer' }}
+        </button>
+      </div>
+    </footer>
+  </form>
+</ng-template>
+
+<div class="confirm-backdrop" *ngIf="confirmDeactivateTarget as target">
+  <section class="confirm-modal">
+    <span class="warn-icon"><i-icon name="alert-triangle" size="22"></i-icon></span>
+    <div>
+      <h2>Désactiver ce collaborateur ?</h2>
+      <p>Le profil restera conservé, mais l'accès et l'affichage actif seront suspendus.</p>
+      <div class="confirm-person">
+        <strong>{{ fullName(target) }}</strong>
+        <small>{{ target.email }}</small>
+      </div>
+      <footer>
+        <button class="btn light" type="button" (click)="closeDeactivate()">Annuler</button>
+        <button class="btn danger" type="button" (click)="confirmDeactivate()">Désactiver</button>
+      </footer>
+    </div>
+  </section>
+</div>

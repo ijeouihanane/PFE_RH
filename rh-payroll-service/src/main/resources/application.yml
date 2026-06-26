@@ -1,0 +1,46 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: rh-payroll-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/DataRh?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Africa/Casablanca&characterEncoding=utf8
+    username: root
+    password:
+    hikari:
+      max-lifetime: 600000 # 10 minutes (prevents mysql 8h timeout drop)
+      keepalive-time: 300000 # 5 minutes
+      validation-timeout: 5000
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 30MB
+  kafka:
+    bootstrap-servers: localhost:9092
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${server.port}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+app:
+  uploads:
+    dir: uploads
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"

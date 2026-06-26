@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Contrat de Travail CDD</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 12.5pt;
+            color: #111;
+            background: #fff;
+            padding: 48pt 56pt;
+            line-height: 1.55;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5pt;
+            margin-bottom: 24pt;
+        }
+
+        .parties {
+            margin-bottom: 18pt;
+            text-align: justify;
+        }
+
+        .parties p {
+            margin-bottom: 9pt;
+        }
+
+        .article {
+            margin-bottom: 14pt;
+            text-align: justify;
+        }
+
+        .art-title {
+            font-weight: bold;
+            margin-bottom: 6pt;
+        }
+
+        .art-body p {
+            margin-bottom: 5pt;
+        }
+
+        ul,
+        ol {
+            margin: 4pt 0 6pt 18pt;
+        }
+
+        li {
+            margin-bottom: 3pt;
+        }
+
+        /* Bloc signatures : ne pas couper entre deux pages */
+        .sigs {
+            margin-top: 32pt;
+            page-break-inside: avoid;
+        }
+
+        .sigs table {
+            width: 100%;
+            border: none;
+            border-collapse: collapse;
+        }
+
+        .sigs td {
+            width: 50%;
+            vertical-align: top;
+            padding-top: 0;
+        }
+
+        .sig-label {
+            font-weight: bold;
+            margin-bottom: 4pt;
+        }
+
+        .sig-info {
+            margin-bottom: 3pt;
+            font-size: 11.5pt;
+        }
+
+        .signature-tail-space {
+            height: 12pt;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>CONTRAT DE TRAVAIL À DURÉE DÉTERMINÉE</h1>
+
+    <div class="parties">
+        <p><strong>ENTRE LES SOUSSIGNÉS :</strong></p>
+        <p>La Société <strong>TechCorp</strong>, dont le siège social est situé à Casablanca, représentée par M.
+            <strong>Mohammad BAKKALI</strong>, en sa qualité d'Associé-gérant, ci-après désignée <em>« la Société
+                »</em>,
+        </p>
+        <p>D'une part,</p>
+        <p><strong>Et :</strong></p>
+        <p>M. / Mme <strong th:text="${employeeFullName}"></strong>,
+            titulaire de la CIN n° <span th:text="${employeeCin}"></span>,</p>
+        <p>Ci-après dénommé(e) <em>« le (la) Salarié(e) »</em>,</p>
+        <p>D'autre part,</p>
+        <p><em>Il a été convenu ce qui suit :</em></p>
+    </div>
+
+    <!-- Clauses dynamiques issues du formulaire RH -->
+    <div class="article" th:each="clause : ${clauses}">
+        <div class="art-title" th:utext="${clause.title}"></div>
+        <div class="art-body" th:utext="${clause.html}"></div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="sigs">
+        <p>Fait à <span th:text="${signaturePlace}"></span>, le <span th:text="${signatureDate}"></span></p>
+        <p>En deux exemplaires originaux.</p>
+        <br />
+        <table>
+            <tr>
+                <td>
+                    <div class="sig-label">Pour la Société</div>
+                    <div class="sig-info">Nom : Mohammad BAKKALI</div>
+                    <div class="sig-info">Fonction : Associé-gérant</div>
+                    <div class="sig-info">Signature et cachet</div>
+                </td>
+                <td>
+                    <div class="sig-label">Le (la) Salarié(e)</div>
+                    <div class="sig-info">M. / Mme <span th:text="${employeeFullName}"></span></div>
+                    <div class="sig-info">Signature précédée de la mention manuscrite « Lu et approuvé »</div>
+                </td>
+            </tr>
+        </table>
+        <div class="signature-tail-space"></div>
+    </div>
+
+</body>
+
+</html>

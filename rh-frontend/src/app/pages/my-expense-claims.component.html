@@ -1,0 +1,180 @@
+<section class="claims-page claims-page-employee">
+  <div class="claim-toast" *ngIf="toast" [class.toast-error]="toastType === 'error'">
+    <svg *ngIf="toastType === 'success'" lucideCheckCircle2></svg>
+    <svg *ngIf="toastType === 'error'" lucideCircleAlert></svg>
+    <span>{{ toast }}</span>
+  </div>
+
+  <header class="claims-header">
+    <div>
+      <h1>Mes frais</h1>
+      <p>Déclarez vos frais professionnels et suivez leur traitement.</p>
+    </div>
+    <button class="primary-action" type="button" (click)="openCreate()">
+      <svg lucidePlus></svg>
+      <span>Nouvelle demande</span>
+    </button>
+  </header>
+
+  <div class="claims-stats">
+    <article class="claim-stat">
+      <div><p>Total soumis</p><strong>{{ summary.totalSubmitted | number:'1.0-2' }} MAD</strong><small>{{ summary.requestCount }} demande{{ summary.requestCount > 1 ? 's' : '' }}</small></div>
+      <span class="stat-chip slate"><svg lucideWallet></svg></span>
+    </article>
+    <article class="claim-stat">
+      <div><p>En attente</p><strong>{{ summary.pendingAmount | number:'1.0-2' }} MAD</strong></div>
+      <span class="stat-chip orange"><svg lucideClock></svg></span>
+    </article>
+    <article class="claim-stat">
+      <div><p>Approuvés</p><strong>{{ summary.approvedAmount | number:'1.0-2' }} MAD</strong></div>
+      <span class="stat-chip blue"><svg lucideCheckCircle2></svg></span>
+    </article>
+    <article class="claim-stat">
+      <div><p>Remboursés</p><strong>{{ summary.reimbursedAmount | number:'1.0-2' }} MAD</strong></div>
+      <span class="stat-chip green"><svg lucideCircleDollarSign></svg></span>
+    </article>
+  </div>
+
+  <section class="claims-table-card">
+    <div class="claims-toolbar">
+      <label class="claim-search">
+        <svg lucideSearch></svg>
+        <input type="search" [value]="search" (input)="setSearch($any($event.target).value)" placeholder="Rechercher par motif ou note..." />
+      </label>
+      <select [value]="status" (change)="setStatus($any($event.target).value)">
+        <option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</option>
+      </select>
+      <select [value]="period" (change)="setPeriod($any($event.target).value)">
+        <option value="all">Toute période</option>
+        <option value="month">Ce mois</option>
+        <option value="previousMonth">Mois précédent</option>
+        <option value="year">Cette année</option>
+      </select>
+    </div>
+
+    <div class="claim-error" *ngIf="error">{{ error }}</div>
+    <div class="claim-empty" *ngIf="!loading && filteredClaims.length === 0">Aucune demande affichée.</div>
+
+    <div class="claims-scroll" *ngIf="filteredClaims.length > 0">
+      <table class="claims-table employee-table">
+        <thead>
+          <tr>
+            <th>Motif</th>
+            <th>Catégorie</th>
+            <th>Montant</th>
+            <th>Date de dépense</th>
+            <th>Statut</th>
+            <th>Justificatif</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let claim of filteredClaims">
+            <td class="strong-cell">{{ claim.motif }}</td>
+            <td>
+              <span class="category-pill">
+                <svg *ngIf="claim.categorie === 'TRANSPORT'" lucideCar></svg>
+                <svg *ngIf="claim.categorie === 'REPAS'" lucideUtensils></svg>
+                <svg *ngIf="claim.categorie === 'HEBERGEMENT'" lucideBedDouble></svg>
+                <svg *ngIf="claim.categorie === 'CARBURANT'" lucideFuel></svg>
+                <svg *ngIf="claim.categorie === 'MATERIEL'" lucideLaptop></svg>
+                <svg *ngIf="claim.categorie === 'TELEPHONE'" lucidePhone></svg>
+                <svg *ngIf="claim.categorie === 'AUTRE'" lucideMoreHorizontal></svg>
+                {{ categoryLabel(claim.categorie) }}
+              </span>
+            </td>
+            <td class="strong-cell">{{ claim.montant | number:'1.0-2' }} MAD</td>
+            <td>{{ claim.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td><span class="status-pill" [class]="'status-' + claim.status.toLowerCase()">{{ statusLabel(claim.status) }}</span></td>
+            <td>
+              <a class="claim-file-link" [href]="fileUrl(claim.justificatifUrl)" target="_blank" rel="noopener">
+                <svg lucideFileText></svg><span>{{ claim.justificatifOriginalName }}</span>
+              </a>
+            </td>
+            <td>
+              <div class="claim-actions">
+                <button type="button" title="Voir" (click)="openDetail(claim)"><svg lucideEye></svg></button>
+                <button *ngIf="claim.status === 'SOUMIS'" type="button" title="Modifier" (click)="openEdit(claim)"><svg lucidePencil></svg></button>
+                <button *ngIf="claim.status === 'SOUMIS'" class="danger" type="button" title="Supprimer" (click)="confirmDelete(claim)"><svg lucideTrash2></svg></button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="claim-drawer-backdrop" *ngIf="drawerMode" (click)="closeDrawer()"></div>
+  <aside class="claim-drawer" *ngIf="drawerMode">
+    <header>
+      <h2>{{ drawerMode === 'create' ? 'Nouvelle demande de frais' : drawerMode === 'edit' ? 'Modifier la demande' : 'Détail de la demande' }}</h2>
+      <button type="button" (click)="closeDrawer()"><svg lucideX></svg></button>
+    </header>
+
+    <form class="claim-form" *ngIf="drawerMode !== 'detail'" [formGroup]="form" (ngSubmit)="submit()">
+      <label><span>Motif *</span><input formControlName="motif" /></label>
+      <label><span>Catégorie *</span><select formControlName="categorie"><option *ngFor="let c of categories" [value]="c.value">{{ c.label }}</option></select></label>
+      <div class="form-row">
+        <label><span>Montant (MAD) *</span><input type="number" min="0" step="0.01" formControlName="montant" /></label>
+        <label><span>Date/Heure *</span><input type="datetime-local" formControlName="dateHeure" /></label>
+      </div>
+      <label><span>Note</span><textarea formControlName="note" rows="4"></textarea></label>
+      <label class="claim-upload">
+        <span>Justificatif * (PDF, JPG, PNG)</span>
+        <input type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onFileSelected($event)" />
+        <div><svg lucideUpload></svg><strong>{{ selectedFile?.name || selected?.justificatifOriginalName || 'Téléverser un fichier' }}</strong></div>
+      </label>
+      <footer>
+        <button class="secondary-action" type="button" (click)="closeDrawer()">Annuler</button>
+        <button class="primary-action" type="submit" [disabled]="saving">{{ drawerMode === 'edit' ? 'Enregistrer' : 'Soumettre' }}</button>
+      </footer>
+    </form>
+
+    <div class="claim-detail" *ngIf="drawerMode === 'detail' && selected">
+      <div class="detail-title">
+        <div>
+          <h3>{{ selected.motif }}</h3>
+          <span class="category-pill">
+            <svg *ngIf="selected.categorie === 'TRANSPORT'" lucideCar></svg>
+            <svg *ngIf="selected.categorie === 'REPAS'" lucideUtensils></svg>
+            <svg *ngIf="selected.categorie === 'HEBERGEMENT'" lucideBedDouble></svg>
+            <svg *ngIf="selected.categorie === 'CARBURANT'" lucideFuel></svg>
+            <svg *ngIf="selected.categorie === 'MATERIEL'" lucideLaptop></svg>
+            <svg *ngIf="selected.categorie === 'TELEPHONE'" lucidePhone></svg>
+            <svg *ngIf="selected.categorie === 'AUTRE'" lucideMoreHorizontal></svg>
+            {{ categoryLabel(selected.categorie) }}
+          </span>
+        </div>
+        <span class="status-pill" [class]="'status-' + selected.status.toLowerCase()">{{ statusLabel(selected.status) }}</span>
+      </div>
+      <div class="detail-grid">
+        <div><span>Montant</span><strong>{{ selected.montant | number:'1.0-2' }} MAD</strong></div>
+        <div><span>Date de dépense</span><strong>{{ selected.dateHeure | date:'dd/MM/yyyy HH:mm' }}</strong></div>
+      </div>
+      <div class="detail-block" *ngIf="selected.note"><span>Note</span><p>{{ selected.note }}</p></div>
+      <div class="detail-block">
+        <span>Justificatif envoyé</span>
+        <a class="file-button" [href]="fileUrl(selected.justificatifUrl)" target="_blank" rel="noopener"><svg lucideImage></svg>{{ selected.justificatifOriginalName }}</a>
+      </div>
+      <div class="detail-message" *ngIf="selected.status === 'APPROUVE'">Votre demande a été validée. Le remboursement est en attente.</div>
+      <div class="detail-message refused" *ngIf="selected.status === 'REFUSE'"><strong>Motif du refus</strong><p>{{ selected.refusalReason }}</p></div>
+      <div class="detail-message reimbursed" *ngIf="selected.status === 'REMBOURSE'">
+        <strong>Remboursement effectué</strong>
+        <p>{{ selected.reimbursedAt | date:'dd/MM/yyyy' }} · {{ modeLabel(selected.reimbursementMode) }}</p>
+        <p *ngIf="selected.reimbursementNote">{{ selected.reimbursementNote }}</p>
+        <a *ngIf="selected.reimbursementProofUrl" [href]="fileUrl(selected.reimbursementProofUrl)" target="_blank" rel="noopener">Preuve de remboursement</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="claim-modal-backdrop" *ngIf="deleteTarget">
+    <section class="claim-confirm-modal">
+      <h2>Supprimer la demande ?</h2>
+      <p>Cette action est irréversible.</p>
+      <div>
+        <button class="secondary-action" type="button" (click)="deleteTarget = null">Annuler</button>
+        <button class="danger-action" type="button" (click)="deleteClaim()">Supprimer</button>
+      </div>
+    </section>
+  </div>
+</section>

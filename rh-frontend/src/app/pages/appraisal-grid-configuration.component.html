@@ -1,0 +1,238 @@
+<section class="grid-config" [class.editor-open]="mode !== 'LIST'">
+  <div class="toast" *ngIf="toast">
+    <span class="toast-icon"><svg lucideCheck [size]="16"></svg></span>
+    <div><strong>{{ toast.title }}</strong><span>{{ toast.message }}</span></div>
+  </div>
+
+  <div class="error-banner" *ngIf="error">
+    <span>{{ error }}</span>
+    <button type="button" aria-label="Fermer" (click)="error = null"><svg lucideX [size]="16"></svg></button>
+  </div>
+
+  <ng-container *ngIf="mode === 'LIST'; else editor">
+    <div class="list-scroll">
+      <div class="list-container">
+        <section class="summary-grid">
+          <article>
+            <span class="summary-icon"><svg lucideGrid2X2 [size]="20"></svg></span>
+            <div><small>GRILLES ACTIVES</small><strong>{{ activeGridCount }}</strong></div>
+          </article>
+          <article>
+            <span class="summary-icon"><svg lucideBuilding2 [size]="20"></svg></span>
+            <div><small>DÉPARTEMENTS COUVERTS</small><strong>{{ coveredDepartmentCount }} / 6</strong></div>
+          </article>
+          <article>
+            <span class="summary-icon"><svg lucideFileText [size]="20"></svg></span>
+            <div><small>GRILLE GÉNÉRIQUE</small><strong>{{ genericGrid ? 'Active' : 'Indisponible' }}</strong></div>
+          </article>
+          <article>
+            <span class="summary-icon"><svg lucideListChecks [size]="20"></svg></span>
+            <div><small>CRITÈRES ACTIFS</small><strong>{{ activeCriterionCount }}</strong></div>
+          </article>
+        </section>
+
+        <section class="toolbar">
+          <label class="search">
+            <svg lucideSearch [size]="17"></svg>
+            <input [(ngModel)]="searchText" placeholder="Rechercher par département ou nom de grille...">
+          </label>
+          <div class="filters" role="group" aria-label="Filtrer les grilles">
+            <button type="button" [class.active]="activeFilter === 'ALL'" (click)="activeFilter = 'ALL'">Toutes</button>
+            <button type="button" [class.active]="activeFilter === 'SPECIFIC'" (click)="activeFilter = 'SPECIFIC'">Spécifiques</button>
+            <button type="button" [class.active]="activeFilter === 'GENERIC'" (click)="activeFilter = 'GENERIC'">Générique</button>
+          </div>
+          <button class="primary create-button" type="button" (click)="create()">
+            <svg lucidePlus [size]="17"></svg>Créer une grille départementale
+          </button>
+        </section>
+
+        <section class="table-panel">
+          <div class="loading" *ngIf="loading">Chargement des grilles...</div>
+          <table *ngIf="!loading && filteredRows.length">
+            <thead>
+              <tr>
+                <th>DÉPARTEMENT</th><th>GRILLE ACTIVE</th><th>VERSION</th><th>CRITÈRES</th>
+                <th>DERNIÈRE MODIFICATION</th><th>STATUT</th><th class="actions-head"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of filteredRows">
+                <td>
+                  <span class="dept-name">{{ row.generic ? 'Autres départements' : row.department }}</span>
+                  <span class="dept-sub" *ngIf="row.generic">Appliquée par défaut</span>
+                </td>
+                <td>{{ row.label }}</td>
+                <td>v{{ row.version }}</td>
+                <td>{{ row.criterionCount }}</td>
+                <td>{{ formatDate(row.updatedAt) }}</td>
+                <td>
+                  <span class="status" [class.generic]="row.generic">
+                    <i></i>{{ row.generic ? 'Générique' : 'Active' }}
+                  </span>
+                </td>
+                <td class="col-action">
+                  <div class="row-actions">
+                    <button class="btn-icon-action" type="button" title="Versions" (click)="openVersions(row)">
+                      <svg lucideHistory [size]="16"></svg>
+                    </button>
+                    <button class="btn-icon-action" type="button" title="Configurer" (click)="configure(row)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="empty" *ngIf="!loading && !filteredRows.length">Aucune grille ne correspond à la recherche.</div>
+        </section>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #editor>
+
+
+
+
+    <div class="editor-scroll">
+      <div class="editor-container">
+        <div class="editor-columns">
+          <div class="configuration-column">
+            <section class="form-panel">
+              <h3>Informations générales</h3>
+              <div class="general-fields">
+                <label>
+                  <span>Département</span>
+                  <select *ngIf="mode === 'CREATE'" [(ngModel)]="form.department" (ngModelChange)="departmentChanged()">
+                    <option *ngFor="let department of availableDepartments" [value]="department">{{ department }}</option>
+                  </select>
+                  <input *ngIf="mode === 'EDIT'" [value]="form.department" disabled>
+                </label>
+                <label>
+                  <span>Nom de la grille</span>
+                  <input [(ngModel)]="form.label" maxlength="150">
+                </label>
+                <label *ngIf="mode === 'EDIT'">
+                  <span>Version actuelle</span><input [value]="'v' + source?.version" disabled>
+                </label>
+                <label>
+                  <span>{{ mode === 'CREATE' ? 'Première version' : 'Prochaine version' }}</span>
+                  <input [value]="'v' + nextVersion" disabled>
+                </label>
+              </div>
+            </section>
+
+            <section class="criteria-panel">
+              <div class="section-heading">
+                <div><h3>Critères d’évaluation <em>{{ form.criteria.length }} / 10</em></h3><span>Minimum 2 — maximum 10</span></div>
+                <button class="outline" type="button" [disabled]="form.criteria.length >= 10" (click)="addCriterion()">
+                  <svg lucidePlus [size]="16"></svg>Ajouter un critère
+                </button>
+              </div>
+              <article class="criterion-editor" *ngFor="let criterion of form.criteria; let i = index; trackBy: trackCriterion">
+                <span class="criterion-number">{{ i + 1 }}</span>
+                <div class="criterion-fields">
+                  <input [(ngModel)]="criterion.label" maxlength="180" placeholder="Libellé du critère">
+                  <textarea [(ngModel)]="criterion.description" maxlength="600" rows="2" placeholder="Description du critère"></textarea>
+                </div>
+                <div class="criterion-actions">
+                  <button type="button" [disabled]="i === 0" aria-label="Monter" (click)="moveCriterion(i, -1)"><svg lucideArrowUp [size]="15"></svg></button>
+                  <button type="button" [disabled]="i === form.criteria.length - 1" aria-label="Descendre" (click)="moveCriterion(i, 1)"><svg lucideArrowDown [size]="15"></svg></button>
+                  <button class="delete" type="button" [disabled]="form.criteria.length <= 2" aria-label="Supprimer" (click)="removeCriterion(i)"><svg lucideTrash2 [size]="15"></svg></button>
+                </div>
+              </article>
+            </section>
+          </div>
+
+          <aside class="preview-panel">
+            <div class="preview-heading">
+              <div><h3><svg lucideEye [size]="16"></svg>Aperçu de la grille</h3><span>Tel que vu par le manager pendant l’évaluation.</span></div>
+              <span class="readonly">Lecture seule</span>
+            </div>
+            <article class="preview-criterion" *ngFor="let criterion of form.criteria; let i = index">
+              <span class="criterion-number">{{ i + 1 }}</span>
+              <div>
+                <strong>{{ criterion.label || 'Nouveau critère' }}</strong>
+                <p>{{ criterion.description || 'La description apparaîtra ici.' }}</p>
+                <div class="level-preview">
+                  <span>À renforcer</span><span>En progression</span><span>Conforme</span><span>Point fort</span>
+                </div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <footer class="editor-footer">
+      <div class="footer-container">
+        <button class="outline" type="button" (click)="cancelEditor()">Annuler</button>
+        <button class="primary" type="button" [disabled]="!formValid || saving" (click)="requestPublish()">
+          <svg lucideCheck [size]="16"></svg>{{ mode === 'CREATE' ? 'Créer et publier la grille' : 'Publier la nouvelle version' }}
+        </button>
+      </div>
+    </footer>
+  </ng-template>
+
+  <div class="overlay" *ngIf="drawerOpen" (click)="closeDrawer()"></div>
+  <aside class="drawer" [class.open]="drawerOpen">
+    <header>
+      <div>
+        <strong *ngIf="drawerMode === 'VERSIONS'">Historique des versions</strong>
+        <strong *ngIf="drawerMode === 'DETAIL'">{{ viewedVersion?.label }} — Version {{ viewedVersion?.version }}</strong>
+        <span>{{ drawerMode === 'VERSIONS' ? drawerGrid?.label + ' — Département ' + (drawerGrid?.department || 'générique') : (viewedVersion?.active ? 'Version active' : 'Version archivée') }}</span>
+      </div>
+      <button type="button" aria-label="Fermer" (click)="closeDrawer()"><svg lucideX [size]="18"></svg></button>
+    </header>
+    <div class="drawer-body">
+      <div class="loading" *ngIf="drawerLoading">Chargement...</div>
+      <ng-container *ngIf="!drawerLoading && drawerMode === 'VERSIONS'">
+        <article class="version-card" *ngFor="let version of versions">
+          <div>
+            <strong>Version {{ version.version }} <span class="status" [class.archived]="!version.active"><i></i>{{ version.active ? 'Active' : 'Archivée' }}</span></strong>
+            <span>Publiée le {{ formatDate(version.publishedAt, true) }}</span>
+            <span>{{ version.criterionCount }} critères</span>
+            <em>{{ version.active ? 'Utilisée pour les nouvelles appréciations' : 'Conservée pour les appréciations existantes' }}</em>
+          </div>
+          <button class="outline" type="button" (click)="viewVersion(version)">Consulter</button>
+        </article>
+      </ng-container>
+      <ng-container *ngIf="!drawerLoading && drawerMode === 'DETAIL' && viewedVersion as version">
+        <button class="drawer-back" type="button" (click)="drawerMode = 'VERSIONS'"><svg lucideChevronLeft [size]="16"></svg>Retour aux versions</button>
+        <div class="version-note" [class.archived]="!version.active">
+          {{ version.active ? 'Version actuellement utilisée pour les nouvelles appréciations.' : 'Version archivée, conservée pour les appréciations existantes.' }}
+        </div>
+        <div class="metadata">
+          <div><small>DÉPARTEMENT</small><strong>{{ version.department || 'Tous les autres' }}</strong></div>
+          <div><small>GRILLE</small><strong>{{ version.label }}</strong></div>
+          <div><small>VERSION</small><strong>v{{ version.version }}</strong></div>
+          <div><small>STATUT</small><strong>{{ version.active ? 'Active' : 'Archivée' }}</strong></div>
+          <div><small>DATE DE PUBLICATION</small><strong>{{ formatDate(version.publishedAt, true) }}</strong></div>
+          <div><small>CRITÈRES</small><strong>{{ version.criteria.length }}</strong></div>
+        </div>
+        <article class="drawer-criterion" *ngFor="let criterion of version.criteria; let i = index">
+          <span>{{ i + 1 }}</span><div><strong>{{ criterion.label }}</strong><p>{{ criterion.description }}</p></div>
+        </article>
+      </ng-container>
+    </div>
+    <footer><button class="outline" type="button" (click)="closeDrawer()">Fermer</button></footer>
+  </aside>
+
+  <div class="modal-overlay" *ngIf="confirmOpen">
+    <section class="confirm-modal">
+      <h3>{{ mode === 'CREATE' ? 'Créer et publier cette grille ?' : 'Publier cette nouvelle version ?' }}</h3>
+      <p *ngIf="mode === 'EDIT'">La version {{ nextVersion }} remplacera la version {{ source?.version }} pour les prochaines appréciations du département {{ form.department }}. Les brouillons et appréciations existants conserveront leur version actuelle.</p>
+      <p *ngIf="mode === 'CREATE'">La grille sera publiée en version 1 et utilisée pour les prochaines appréciations du département {{ form.department }}.</p>
+      <div class="confirmation-data">
+        <span>Département <span class="value">{{ form.department }}</span></span>
+        <span>Grille <span class="value">{{ form.label }}</span></span>
+        <span>Nouvelle version <span class="value">v{{ nextVersion }}</span></span>
+        <span>Critères <span class="value">{{ form.criteria.length }}</span></span>
+      </div>
+      <footer>
+        <button class="outline" type="button" [disabled]="saving" (click)="confirmOpen = false">Continuer la modification</button>
+        <button class="primary" type="button" [disabled]="saving" (click)="publish()">{{ saving ? 'Publication...' : 'Publier la version' }}</button>
+      </footer>
+    </section>
+  </div>
+</section>

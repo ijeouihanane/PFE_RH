@@ -1,0 +1,54 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: rh-user-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/DataRh?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Africa/Casablanca&characterEncoding=utf8
+    username: root
+    password:
+    hikari:
+      max-lifetime: 600000 # 10 minutes
+      keepalive-time: 300000 # 5 minutes
+      validation-timeout: 5000
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 25MB
+  kafka:
+    bootstrap-servers: localhost:9092
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${server.port}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+app:
+  jwt:
+    secret: "rh-platform-super-secret-key-2025-minimum-32-chars"
+    issuer: "rh-platform"
+    expiration-ms: 86400000
+  uploads:
+    dir: uploads
+
+logging:
+  level:
+    ma.pfe: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG

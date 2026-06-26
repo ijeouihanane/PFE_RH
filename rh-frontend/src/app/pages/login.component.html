@@ -1,0 +1,169 @@
+<div class="auth-page">
+
+  <!-- Panneau gauche : branding / illustration -->
+  <div class="auth-showcase">
+    <div class="showcase-bg"></div>
+    <div class="showcase-glow"></div>
+
+    <div class="showcase-header">
+      <div class="brand">
+        <span class="brand-icon">
+          <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 2 L28 9 V23 L16 30 L4 23 V9 Z" fill="none" />
+            <path d="M16 2 L4 9 V23 L16 30 L16 16 L4 9 Z" fill="#3b82f6" />
+            <path d="M16 2 L28 9 L16 16 L16 9 Z" fill="#ffffff" />
+            <path d="M16 16 L28 9 V23 L16 30 Z" fill="#ffffff" />
+            <path d="M16 9 L21.5 12.2 V18.6 L16 21.8 L10.5 18.6 V12.2 Z" fill="#0a0e1a" />
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">TechCorp</span>
+          <span class="brand-sub">SIRH</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="showcase-body">
+      <span class="badge"><span class="badge-dot"></span>PLATEFORME RH UNIFIÉE</span>
+
+      <h1 class="showcase-title">
+        Bienvenue sur<br />
+        <span class="title-accent">votre espace RH</span><br />
+        <span class="title-muted">simplifié &amp; centralisé</span>
+      </h1>
+
+      <p class="showcase-text">
+        Une plateforme unifiée pour piloter<br />
+        vos talents au quotidien.
+      </p>
+
+      <div class="feature-cards">
+        <div class="feature-card">
+          <span class="feature-card-dot"></span>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="10" cy="8" r="4" stroke="currentColor" stroke-width="1.8" />
+              <path d="M21 20v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M16 4.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="feature-label">Employés</span>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-card-dot"></span>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 12h4l2 8 4-16 2 8h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="feature-label">Analytique</span>
+        </div>
+
+        <div class="feature-card">
+          <span class="feature-card-dot"></span>
+          <span class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="4" width="18" height="13" rx="1.5" stroke="currentColor" stroke-width="1.8" />
+              <path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="feature-label">Tableau de bord</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="showcase-footer">
+      <span class="copyright">© 2026 TechCorp · Tous droits réservés</span>
+    </div>
+  </div>
+
+  <!-- Panneau droit : formulaire de connexion -->
+  <div class="auth-panel">
+    <div class="auth-card">
+
+      <h2 class="auth-card-title">Connexion</h2>
+      <p class="auth-card-subtitle">Accédez à votre espace de travail</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" autocomplete="off" class="auth-form">
+
+        <div class="field">
+          <label for="email">EMAIL PROFESSIONNEL</label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M3 7l9 6 9-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </span>
+            <input id="email" name="email" type="email" formControlName="email" autocomplete="off"
+              placeholder="vous@techcorp.ma" />
+          </div>
+          <div class="field-error" *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
+            Veuillez saisir un email professionnel valide.
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">MOT DE PASSE</label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              </svg>
+            </span>
+            <input id="password" name="password" [type]="showPassword ? 'text' : 'password'" formControlName="password"
+              autocomplete="off" placeholder="••••••••••" />
+            <button type="button" class="toggle-visibility" (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+              <svg *ngIf="!showPassword" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+              <svg *ngIf="showPassword" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                <path d="M10.6 10.6a3 3 0 0 0 4.24 4.24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                  stroke-linejoin="round" />
+                <path
+                  d="M6.2 6.6C3.9 8.2 2 12 2 12s4 7 11 7c1.7 0 3.2-.35 4.5-.93M21.5 16.2C22.4 14.9 23 13.6 23 12c0 0-1.1-1.9-3.1-3.6"
+                  stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="field-error" *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+            Le mot de passe est requis.
+          </div>
+        </div>
+
+        <a href="#" class="forgot-link" (click)="$event.preventDefault()">Mot de passe oublié ?</a>
+
+        <div class="error" *ngIf="error">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 8v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="12" cy="15.8" r="0.9" fill="currentColor" />
+          </svg>
+          <span>{{ error }}</span>
+        </div>
+
+        <button class="btn btn-primary" type="submit">
+          Se connecter
+        </button>
+      </form>
+
+      <p class="auth-card-secure">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6" />
+          <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        Connexion protégée — TechCorp RH
+      </p>
+    </div>
+  </div>
+</div>

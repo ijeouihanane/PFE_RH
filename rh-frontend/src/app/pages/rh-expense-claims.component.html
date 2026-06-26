@@ -1,0 +1,134 @@
+<section class="claims-page claims-page-rh">
+  <div class="claim-toast" *ngIf="toast"><svg lucideCheckCircle2></svg><span>{{ toast }}</span></div>
+
+  <header class="claims-header">
+    <div>
+      <h1>Frais salariés</h1>
+      <p>Suivi, validation et remboursement des frais déclarés par les salariés.</p>
+    </div>
+  </header>
+
+  <div class="claims-stats">
+    <article class="claim-stat"><div><p>Demandes en attente</p><strong>{{ summary.pendingCount }}</strong></div><span class="stat-chip orange"><svg lucideClock></svg></span></article>
+    <article class="claim-stat"><div><p>Montant à rembourser</p><strong>{{ summary.approvedAmount | number:'1.0-2' }} MAD</strong></div><span class="stat-chip blue"><svg lucideWallet></svg></span></article>
+    <article class="claim-stat"><div><p>Montant remboursé</p><strong>{{ summary.reimbursedAmount | number:'1.0-2' }} MAD</strong></div><span class="stat-chip green"><svg lucideCircleDollarSign></svg></span></article>
+    <article class="claim-stat"><div><p>Nombre de demandes</p><strong>{{ summary.requestCount }}</strong></div><span class="stat-chip slate"><svg lucideReceipt></svg></span></article>
+  </div>
+
+  <section class="claims-table-card">
+    <div class="claims-toolbar">
+      <label class="claim-search"><svg lucideSearch></svg><input type="search" [value]="search" (input)="setSearch($any($event.target).value)" placeholder="Rechercher par employé, motif ou note..." /></label>
+      <select [value]="status" (change)="setStatus($any($event.target).value)"><option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</option></select>
+      <select [value]="period" (change)="setPeriod($any($event.target).value)">
+        <option value="all">Toute période</option>
+        <option value="month">Ce mois</option>
+        <option value="previousMonth">Mois précédent</option>
+        <option value="year">Cette année</option>
+      </select>
+    </div>
+
+    <div class="claim-error" *ngIf="error">{{ error }}</div>
+    <div class="claim-empty" *ngIf="!loading && filteredClaims.length === 0">Aucune demande affichée.</div>
+
+    <div class="claims-scroll" *ngIf="filteredClaims.length > 0">
+      <table class="claims-table rh-table">
+        <thead>
+          <tr>
+            <th>Employé</th><th>Motif</th><th>Catégorie</th><th>Montant</th><th>Date de dépense</th><th>Statut</th><th>Justificatif</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let claim of filteredClaims">
+            <td><div class="employee-cell"><span>{{ claim.employeeInitials }}</span><strong>{{ claim.employeeLabel }}</strong></div></td>
+            <td class="strong-cell wrap-cell">{{ claim.motif }}</td>
+            <td>
+              <span class="category-pill">
+                <svg *ngIf="claim.categorie === 'TRANSPORT'" lucideCar></svg>
+                <svg *ngIf="claim.categorie === 'REPAS'" lucideUtensils></svg>
+                <svg *ngIf="claim.categorie === 'HEBERGEMENT'" lucideBedDouble></svg>
+                <svg *ngIf="claim.categorie === 'CARBURANT'" lucideFuel></svg>
+                <svg *ngIf="claim.categorie === 'MATERIEL'" lucideLaptop></svg>
+                <svg *ngIf="claim.categorie === 'TELEPHONE'" lucidePhone></svg>
+                <svg *ngIf="claim.categorie === 'AUTRE'" lucideMoreHorizontal></svg>
+                {{ categoryLabel(claim.categorie) }}
+              </span>
+            </td>
+            <td class="strong-cell">{{ claim.montant | number:'1.0-2' }} MAD</td>
+            <td>{{ claim.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td><span class="status-pill" [class]="'status-' + claim.status.toLowerCase()">{{ statusLabel(claim.status) }}</span></td>
+            <td><a class="claim-file-link" [href]="fileUrl(claim.justificatifUrl)" target="_blank" rel="noopener"><svg lucideFileText></svg><span>{{ claim.justificatifOriginalName }}</span></a></td>
+            <td>
+              <div class="claim-actions">
+                <button type="button" title="Voir" (click)="detailTarget = claim"><svg lucideEye></svg></button>
+                <button *ngIf="claim.status === 'SOUMIS'" class="success" type="button" title="Approuver" (click)="approve(claim)"><svg lucideCheck></svg></button>
+                <button *ngIf="claim.status === 'SOUMIS'" class="danger" type="button" title="Refuser" (click)="openReject(claim)"><svg lucideXCircle></svg></button>
+                <button *ngIf="claim.status === 'APPROUVE'" class="blue" type="button" title="Marquer comme remboursé" (click)="openReimburse(claim)"><svg lucideWallet></svg></button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="claim-drawer-backdrop" *ngIf="detailTarget" (click)="detailTarget = null"></div>
+  <aside class="claim-drawer" *ngIf="detailTarget">
+    <header><h2>Détail de la demande</h2><button type="button" (click)="detailTarget = null"><svg lucideX></svg></button></header>
+    <div class="claim-detail">
+      <div class="rh-person"><span>{{ detailTarget.employeeInitials }}</span><div><strong>{{ detailTarget.employeeLabel }}</strong><small>Salarié</small></div><em class="status-pill" [class]="'status-' + detailTarget.status.toLowerCase()">{{ statusLabel(detailTarget.status) }}</em></div>
+      <div class="detail-title"><div><h3>{{ detailTarget.motif }}</h3><span class="category-pill">
+        <svg *ngIf="detailTarget.categorie === 'TRANSPORT'" lucideCar></svg>
+        <svg *ngIf="detailTarget.categorie === 'REPAS'" lucideUtensils></svg>
+        <svg *ngIf="detailTarget.categorie === 'HEBERGEMENT'" lucideBedDouble></svg>
+        <svg *ngIf="detailTarget.categorie === 'CARBURANT'" lucideFuel></svg>
+        <svg *ngIf="detailTarget.categorie === 'MATERIEL'" lucideLaptop></svg>
+        <svg *ngIf="detailTarget.categorie === 'TELEPHONE'" lucidePhone></svg>
+        <svg *ngIf="detailTarget.categorie === 'AUTRE'" lucideMoreHorizontal></svg>
+        {{ categoryLabel(detailTarget.categorie) }}
+      </span></div></div>
+      <div class="detail-grid"><div><span>Montant</span><strong>{{ detailTarget.montant | number:'1.0-2' }} MAD</strong></div><div><span>Date de dépense</span><strong>{{ detailTarget.dateHeure | date:'dd/MM/yyyy HH:mm' }}</strong></div></div>
+      <div class="detail-block" *ngIf="detailTarget.note"><span>Note salarié</span><p>{{ detailTarget.note }}</p></div>
+      <div class="detail-block"><span>Justificatif envoyé</span><a class="file-button" [href]="fileUrl(detailTarget.justificatifUrl)" target="_blank" rel="noopener"><svg lucideImage></svg>{{ detailTarget.justificatifOriginalName }}</a></div>
+      <div class="history-box">
+        <strong><svg lucideHistory style="vertical-align: -3px; margin-right: 6px;"></svg>Historique</strong>
+        <p>• Soumis le {{ detailTarget.submittedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+        <p *ngIf="detailTarget.reviewedAt">• {{ detailTarget.status === 'REFUSE' ? 'Refusé' : 'Approuvé' }} le {{ detailTarget.reviewedAt | date:'dd/MM/yyyy HH:mm' }}</p>
+        <p *ngIf="detailTarget.reimbursedAt">• Remboursé le {{ detailTarget.reimbursedAt | date:'dd/MM/yyyy' }} · {{ modeLabel(detailTarget.reimbursementMode) }}</p>
+      </div>
+      <div class="detail-message refused" *ngIf="detailTarget.status === 'REFUSE'"><strong>Motif du refus</strong><p>{{ detailTarget.refusalReason }}</p></div>
+      <div class="detail-message reimbursed" *ngIf="detailTarget.status === 'REMBOURSE'"><strong>Remboursement</strong><p>{{ modeLabel(detailTarget.reimbursementMode) }} · {{ detailTarget.reimbursementNote || 'Aucune référence' }}</p><a *ngIf="detailTarget.reimbursementProofUrl" [href]="fileUrl(detailTarget.reimbursementProofUrl)" target="_blank" rel="noopener">Preuve de remboursement</a></div>
+    </div>
+  </aside>
+
+  <div class="claim-modal-backdrop" *ngIf="rejectTarget">
+    <section class="claim-confirm-modal reject-modal">
+      <button class="modal-x" type="button" (click)="rejectTarget = null"><svg lucideX></svg></button>
+      <h2>Refuser la demande</h2>
+      <p>{{ rejectTarget.employeeLabel }} — {{ rejectTarget.montant | number:'1.0-2' }} MAD</p>
+      <form [formGroup]="rejectForm" (ngSubmit)="reject()">
+        <label><span>Motif du refus *</span><textarea formControlName="reason" rows="4" placeholder="Expliquez le motif du refus..."></textarea></label>
+        <div><button class="secondary-action" type="button" (click)="rejectTarget = null">Annuler</button><button class="danger-action" type="submit">Refuser</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="claim-modal-backdrop" *ngIf="reimburseTarget">
+    <section class="reimburse-modal">
+      <button class="modal-x" type="button" (click)="reimburseTarget = null"><svg lucideX></svg></button>
+      <h2>Marquer comme remboursé</h2>
+      <p>{{ reimburseTarget.employeeLabel }} — {{ reimburseTarget.montant | number:'1.0-2' }} MAD</p>
+      <form [formGroup]="reimburseForm" (ngSubmit)="reimburse()">
+        <span class="field-title">Mode de remboursement *</span>
+        <div class="mode-segment">
+          <label><input type="radio" value="ESPECES" formControlName="mode" /><span>Espèces</span></label>
+          <label><input type="radio" value="VIREMENT" formControlName="mode" /><span>Virement</span></label>
+          <label><input type="radio" value="AUTRE" formControlName="mode" /><span>Autre</span></label>
+        </div>
+        <label><span>Date de remboursement *</span><input type="date" formControlName="date" /></label>
+        <label><span>Note / référence (optionnel)</span><input formControlName="note" placeholder="N° virement, référence..." /></label>
+        <label class="claim-upload compact"><span>Justificatif de remboursement (optionnel)</span><input type="file" accept=".pdf,.jpg,.jpeg,.png" (change)="onProofSelected($event)" /><div><svg lucideUpload></svg><strong>{{ reimbursementProof?.name || 'Téléverser' }}</strong></div></label>
+        <footer><button class="secondary-action" type="button" (click)="reimburseTarget = null">Annuler</button><button class="primary-action" type="submit">Confirmer le remboursement</button></footer>
+      </form>
+    </section>
+  </div>
+</section>

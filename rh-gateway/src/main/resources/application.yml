@@ -1,0 +1,119 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: rh-gateway
+  main:
+    web-application-type: reactive
+  codec:
+    max-in-memory-size: 20MB
+  cloud:
+    gateway:
+      httpclient:
+        resolver:
+          prefer-ipv4: true
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - "Authorization"
+            allowCredentials: true
+      routes:
+        - id: document-uploads
+          uri: lb://RH-DOCUMENT-SERVICE
+          predicates:
+            - Path=/uploads/documents/**,/uploads/doc-requests/**,/uploads/ai-docs/**
+        - id: leave-uploads
+          uri: lb://RH-LEAVE-SERVICE
+          predicates:
+            - Path=/uploads/leaves/**
+        - id: payroll-uploads
+          uri: lb://RH-PAYROLL-SERVICE
+          predicates:
+            - Path=/uploads/payslips/**,/uploads/expenses/**,/uploads/expense-claims/**
+        - id: user-uploads
+          uri: lb://RH-USER-SERVICE
+          predicates:
+            - Path=/uploads/users/**
+        - id: user-service
+          uri: lb://RH-USER-SERVICE
+          predicates:
+            - Path=/api/users/**,/api/auth/**,/api/appraisals/**,/api/appraisal-grids/**,/api/reference/**
+        - id: leave-service
+          uri: lb://RH-LEAVE-SERVICE
+          predicates:
+            - Path=/api/leaves/**
+        - id: document-service
+          uri: lb://RH-DOCUMENT-SERVICE
+          predicates:
+            - Path=/api/documents/**
+        - id: contract-uploads
+          uri: lb://RH-DOCUMENT-SERVICE
+          predicates:
+            - Path=/uploads/contracts/**
+        - id: contract-service
+          uri: lb://RH-DOCUMENT-SERVICE
+          predicates:
+            - Path=/api/contracts/**
+        - id: timesheet-service
+          uri: lb://RH-TIMESHEET-SERVICE
+          predicates:
+            - Path=/api/timesheets/**,/api/projects/**
+        - id: payroll-service
+          uri: lb://RH-PAYROLL-SERVICE
+          predicates:
+            - Path=/api/payroll/**,/api/expenses/**,/api/expense-claims/**
+        - id: notification-service
+          uri: lb://RH-NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+        - id: chat-service
+          uri: lb://RH-CHAT-SERVICE
+          predicates:
+            - Path=/api/chat/**
+        - id: chat-websocket
+          uri: lb:ws://RH-CHAT-SERVICE
+          predicates:
+            - Path=/ws/chat,/ws/chat/**
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+    instance-id: ${spring.application.name}:${server.port}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+app:
+  security:
+    jwt:
+      secret: "rh-platform-super-secret-key-2025-minimum-32-chars"
+      issuer: "rh-platform"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
+
+logging:
+  level:
+    ma.pfe: DEBUG
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.cloud.loadbalancer: TRACE
+    org.springframework.web: DEBUG

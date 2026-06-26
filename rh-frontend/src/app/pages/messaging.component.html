@@ -1,0 +1,220 @@
+<div class="messaging-page">
+  <header class="messaging-topbar">
+    <div class="page-title">
+      <svg lucideMessageSquare [size]="20"></svg>
+      <strong>{{ title }}</strong>
+      <span>· {{ subtitle }}</span>
+    </div>
+
+    <div class="top-actions">
+      <button class="icon-btn bell" type="button" (click)="$event.stopPropagation(); notificationsOpen = !notificationsOpen" aria-label="Notifications">
+        <svg lucideBell [size]="18"></svg>
+        <span *ngIf="unreadNotifications" class="badge">{{ unreadNotifications }}</span>
+      </button>
+      <div class="profile" *ngIf="auth.user as u">
+        <div class="avatar small" [style.backgroundColor]="avatarColor(u.id)">
+          {{ initials(u.prenom + ' ' + u.nom) }}
+          <span class="presence online"></span>
+        </div>
+        <div>
+          <strong>{{ u.prenom }} {{ u.nom }}</strong>
+          <span>{{ roleLabel(u.role) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notifications-popover" *ngIf="notificationsOpen">
+      <h3>Notifications</h3>
+      <button class="notification-row" type="button" *ngFor="let n of notifications" [class.unread]="!n.lu" (click)="openNotification(n)">
+        <div class="avatar mini" [style.backgroundColor]="avatarColor(n.titre)">
+          {{ initials(n.titre.replace('Nouveau message de ', '') || 'RH') }}
+        </div>
+        <div>
+          <strong>{{ n.titre }}</strong>
+          <span>{{ n.message }}</span>
+        </div>
+        <i *ngIf="!n.lu"></i>
+      </button>
+      <div class="empty-mini" *ngIf="!notifications.length">Aucune notification chat</div>
+    </div>
+  </header>
+
+  <main class="messaging-shell">
+    <aside class="conversation-pane">
+      <div class="pane-head">
+        <strong>Conversations</strong>
+        <button *ngIf="isRh" class="new-btn" type="button" (click)="newConversationOpen = !newConversationOpen">
+          <svg lucidePlus [size]="16"></svg>
+          Nouvelle
+        </button>
+      </div>
+
+      <label class="search-box">
+        <svg lucideSearch [size]="16"></svg>
+        <input
+          [ngModel]="search"
+          (ngModelChange)="onSearchChange($event)"
+          [placeholder]="isRh ? 'Rechercher employé, manager...' : 'Rechercher...'"
+        />
+      </label>
+
+      <div class="new-conversation" *ngIf="isRh && newConversationOpen">
+        <label>
+          <span>Destinataire</span>
+          <select [(ngModel)]="selectedUserId">
+            <option [ngValue]="undefined">Choisir un employé ou manager</option>
+            <option *ngFor="let u of users" [ngValue]="u.id">
+              {{ u.prenom }} {{ u.nom }} · {{ roleLabel(u.role) }}
+            </option>
+          </select>
+        </label>
+        <div class="new-actions">
+          <button class="cancel-new" type="button" (click)="cancelNewConversation()">Annuler</button>
+          <button class="create-new" type="button" (click)="createConversation()" [disabled]="!selectedUserId">Créer</button>
+        </div>
+      </div>
+
+      <div class="filters" *ngIf="isRh">
+        <button type="button" [class.active]="filter === 'ALL'" (click)="setFilter('ALL')">
+          <svg lucideInbox [size]="13"></svg>
+          Tous
+        </button>
+        <button type="button" [class.active]="filter === 'UNREAD'" (click)="setFilter('UNREAD')">
+          <svg lucideBellDot [size]="13"></svg>
+          Non lus
+        </button>
+        <button type="button" [class.active]="filter === 'EMPLOYEE'" (click)="setFilter('EMPLOYEE')">
+          <svg lucideUsers [size]="13"></svg>
+          Employés
+        </button>
+        <button type="button" [class.active]="filter === 'MANAGER'" (click)="setFilter('MANAGER')">
+          <svg lucideUsers [size]="13"></svg>
+          Managers
+        </button>
+      </div>
+
+      <div class="conversation-list">
+        <button
+          class="conversation-item"
+          type="button"
+          *ngFor="let c of filteredConversations"
+          [class.active]="selected?.id === c.id"
+          (click)="selectConversation(c)"
+        >
+          <div class="avatar" [style.backgroundColor]="avatarColor(c.contactId)">
+            {{ initials(c.contactName) }}
+            <span class="presence" [class.online]="c.contactOnline"></span>
+          </div>
+          <div class="conversation-copy">
+            <div class="line">
+              <strong>{{ c.contactName }}</strong>
+              <time>{{ c.lastMessageAt | date: 'HH:mm' }}</time>
+            </div>
+            <span>{{ roleLabel(c.contactRole) }} · {{ c.lastMessagePreview || 'Aucun message' }}</span>
+          </div>
+          <b *ngIf="c.unreadCount">{{ c.unreadCount }}</b>
+        </button>
+
+        <div class="empty-state" *ngIf="!loading && !filteredConversations.length">
+          Aucune conversation
+        </div>
+      </div>
+    </aside>
+
+    <section class="chat-pane" *ngIf="selected; else noConversation">
+      <header class="chat-head">
+        <div class="avatar" [style.backgroundColor]="avatarColor(selected.contactId)">
+          {{ initials(selected.contactName) }}
+          <span class="presence" [class.online]="selected.contactOnline"></span>
+        </div>
+        <div>
+          <strong>{{ selected.contactName }}</strong>
+          <span>{{ roleLabel(selected.contactRole) }} · {{ selected.contactOnline ? 'En ligne' : 'Vu récemment' }}</span>
+        </div>
+      </header>
+
+      <div class="messages-panel" #messagesPanel>
+        <ng-container *ngFor="let row of messageRows">
+          <div class="date-separator" *ngIf="row.kind === 'date'">{{ row.label }}</div>
+
+          <div class="message-row" *ngIf="row.kind === 'message'" [class.mine]="row.message.mine">
+            <div class="bubble" [class.file-bubble]="row.message.messageType === 'FILE'">
+              <button
+                *ngIf="row.message.mine"
+                class="message-menu-btn"
+                type="button"
+                aria-label="Options message"
+                (click)="row.message.menuOpen = !row.message.menuOpen"
+              >
+                <svg lucideMoreHorizontal [size]="15"></svg>
+              </button>
+              <div class="message-menu" *ngIf="row.message.menuOpen">
+                <button type="button" (click)="deleteMessage(row.message)">
+                  <svg lucideTrash2 [size]="14"></svg>
+                  Supprimer
+                </button>
+              </div>
+
+              <ng-container *ngIf="row.message.messageType === 'TEXT'">
+                {{ row.message.content }}
+              </ng-container>
+
+              <button
+                *ngIf="row.message.messageType === 'FILE' && row.message.attachment"
+                class="file-card"
+                type="button"
+                (click)="downloadFile(row.message)"
+              >
+                <span><svg lucideFile [size]="19"></svg></span>
+                <div>
+                  <strong>{{ row.message.attachment.fileName }}</strong>
+                  <small>{{ formatSize(row.message.attachment.fileSize) }}</small>
+                </div>
+                <svg lucideDownload [size]="16"></svg>
+              </button>
+            </div>
+            <div class="message-meta">
+              {{ row.message.createdAt | date: 'HH:mm' }}
+              <span *ngIf="row.message.mine">✓ {{ row.message.readByContact ? 'Lu' : 'Envoyé' }}</span>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <footer class="composer">
+        <div class="emoji-panel" *ngIf="emojiOpen">
+          <div class="emoji-tabs">
+            <button type="button" [class.active]="emojiCategory === 'RECENT'" (click)="emojiCategory = 'RECENT'">Récents</button>
+            <button type="button" [class.active]="emojiCategory === 'SMILEYS'" (click)="emojiCategory = 'SMILEYS'">Visages</button>
+            <button type="button" [class.active]="emojiCategory === 'WORK'" (click)="emojiCategory = 'WORK'">Travail</button>
+            <button type="button" [class.active]="emojiCategory === 'OBJECTS'" (click)="emojiCategory = 'OBJECTS'">Objets</button>
+          </div>
+          <div class="emoji-grid">
+            <button type="button" *ngFor="let emoji of activeEmojis" (click)="addEmoji(emoji)">{{ emoji }}</button>
+          </div>
+        </div>
+        <button class="icon-btn emoji-trigger" type="button" (click)="$event.stopPropagation(); emojiOpen = !emojiOpen" aria-label="Emoji">
+          <svg lucideSmile [size]="18"></svg>
+        </button>
+        <label class="icon-btn attach" aria-label="Joindre un fichier">
+          <svg lucidePaperclip [size]="18"></svg>
+          <input type="file" (change)="pickFile($event)" />
+        </label>
+        <div class="selected-file" *ngIf="file">{{ file.name }}</div>
+        <input [(ngModel)]="draft" (keyup.enter)="send()" placeholder="Écrire un message..." />
+        <button class="send-btn" type="button" (click)="send()" [disabled]="!draft.trim() && !file">
+          <svg lucideSend [size]="17"></svg>
+          Envoyer
+        </button>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<ng-template #noConversation>
+  <section class="chat-pane empty-chat">
+    <svg lucideMessageSquare [size]="42"></svg>
+    <strong>Aucune conversation sélectionnée</strong>
+    <span>Sélectionnez une conversation pour commencer.</span>
+  </section>
+</ng-template>

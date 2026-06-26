@@ -1,0 +1,937 @@
+<div class="rh-db-root" *ngIf="auth.user as u">
+
+  <ng-container *ngIf="u.role === 'RH'">
+    <header class="rh-db-top">
+      <div>
+        <h1>Tableau de bord RH</h1>
+        <p>Vue d'ensemble des sorties d'argent et de l'activité RH.</p>
+      </div>
+      <div class="rh-db-top-actions">
+        <div class="rh-db-month-picker-wrap">
+          <button class="rh-db-date" type="button" (click)="monthPickerOpen = !monthPickerOpen">
+            <i-icon name="calendar" size="16"></i-icon>
+            <span>{{ selectedMonthLabel }}</span>
+            <i-icon name="chevron-down" size="14"></i-icon>
+          </button>
+          <div class="rh-db-month-dropdown" *ngIf="monthPickerOpen">
+            <div class="rh-db-month-grid">
+              <button *ngFor="let m of monthOptions" type="button"
+                [class.active]="m.month === selectedMonth && m.year === selectedYear" (click)="selectMonth(m)">
+                {{ m.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="rh-db-notif-wrap">
+          <button class="rh-db-notif" type="button" aria-label="Notifications" (click)="toggleDashNotif()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+              </path>
+            </svg>
+            <span *ngIf="dashUnreadCount > 0"></span>
+          </button>
+
+          <section class="notification-panel" *ngIf="dashNotificationsOpen" (click)="$event.stopPropagation()">
+            <div class="notification-head">
+              <h2>Notifications</h2>
+              <button type="button" (click)="dashNotificationsOpen = false">×</button>
+            </div>
+            <div class="notification-list">
+              <article *ngFor="let n of notifications" class="notification-item" [class.unread]="!n.lu"
+                [ngClass]="(n.type || '').toLowerCase()" (click)="markDashNotificationRead(n)">
+                <span></span>
+                <div>
+                  <b>{{ n.titre }}</b>
+                  <p>{{ n.message }}</p>
+                  <small>{{ dashNotificationAge(n.createdAt) }}</small>
+                </div>
+              </article>
+              <p class="notification-empty" *ngIf="notifications.length === 0">Aucune notification.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </header>
+
+    <main class="rh-db-page" *ngIf="rhDataLoaded">
+      <section class="rh-db-section-label">
+        <span></span>
+        <p>Sorties d'argent - {{ selectedMonthLabel }}</p>
+      </section>
+
+      <section class="rh-db-money-grid">
+        <article class="rh-db-money-card rh-db-money-card-main">
+          <div class="rh-db-card-head">
+            <p>Sorties globales du mois</p>
+            <span class="rh-db-iconbox">
+              <i-icon name="wallet" size="22"></i-icon>
+            </span>
+          </div>
+          <div class="rh-db-amount">{{ money(finance.totalOutflow) }} <small>MAD</small></div>
+          <div class="rh-db-trend"><span>↑ +8,4 %</span> vs mois précédent</div>
+          <svg class="rh-db-spark" viewBox="0 0 168 44" preserveAspectRatio="none">
+            <polyline [attr.points]="miniLinePoints(0)"></polyline>
+          </svg>
+        </article>
+
+        <article class="rh-db-money-card" *ngFor="let card of [
+          { label: 'Masse salariale nette', value: finance.netPayroll, icon: 'users', tone: 'blue', trend: '+7,1 %' },
+          { label: 'Dépenses RH', value: finance.rhExpenses, icon: 'briefcase', tone: 'cyan', trend: '+5,2 %' },
+          { label: 'Frais remboursés', value: finance.reimbursedClaims, icon: 'receipt', tone: 'green', trend: '+12,6 %' }
+        ]; let i = index">
+          <div class="rh-db-card-head">
+            <p>{{ card.label }}</p>
+            <span class="rh-db-iconbox" [ngClass]="'rh-db-iconbox-' + card.tone">
+              <i-icon [name]="card.icon" size="20"></i-icon>
+            </span>
+          </div>
+          <div class="rh-db-amount rh-db-amount-dark">{{ money(card.value) }} <small>MAD</small></div>
+          <div class="rh-db-trend rh-db-trend-soft"><span>↑ {{ card.trend }}</span> vs mois précédent</div>
+          <svg class="rh-db-spark rh-db-spark-soft" viewBox="0 0 168 44" preserveAspectRatio="none">
+            <polyline [attr.points]="miniLinePoints(i + 1)"></polyline>
+          </svg>
+        </article>
+      </section>
+
+      <section class="rh-db-main-grid">
+        <article class="rh-db-panel rh-db-panel-chart">
+          <div class="rh-db-panel-head rh-db-panel-head-chart">
+            <div>
+              <h2>Évolution des sorties d'argent (6 mois)</h2>
+            </div>
+            <div class="rh-db-legend">
+              <span><i style="background:#2448c6"></i>Salaires nets</span>
+              <span><i style="background:#0ea5e9"></i>Dépenses RH</span>
+              <span><i style="background:#10b981"></i>Frais remboursés</span>
+            </div>
+          </div>
+          <div class="rh-db-chart-wrap">
+            <canvas #outflowCanvas></canvas>
+          </div>
+        </article>
+
+        <article class="rh-db-panel rh-db-donut-panel">
+          <h2>Répartition des dépenses</h2>
+          <div class="rh-db-donut-layout">
+            <div class="rh-db-donut-box">
+              <canvas #expenseDonutCanvas></canvas>
+              <div class="rh-db-donut-center">
+                <span>Total</span>
+                <strong>{{ compactMoney(finance.totalOutflow) }}</strong>
+                <small>MAD</small>
+              </div>
+            </div>
+            <div class="rh-db-donut-legend">
+              <div><span style="background:#2448c6"></span>
+                <p>Salaires nets</p><strong>{{ ratio(finance.netPayroll, finance.totalOutflow) }}%</strong>
+              </div>
+              <div><span style="background:#0ea5e9"></span>
+                <p>Dépenses RH</p><strong>{{ ratio(finance.rhExpenses, finance.totalOutflow) }}%</strong>
+              </div>
+              <div><span style="background:#10b981"></span>
+                <p>Frais remboursés</p><strong>{{ ratio(finance.reimbursedClaims, finance.totalOutflow) }}%</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="rh-db-section-label rh-db-section-label-spaced">
+        <span></span>
+        <p>Indicateurs RH</p>
+      </section>
+
+      <section class="rh-db-kpi-grid">
+        <article class="rh-db-kpi" *ngFor="let k of miniKpis">
+          <span class="rh-db-kpi-icon" [ngClass]="'rh-db-kpi-icon-' + k.tone">
+            <i-icon [name]="k.icon" size="18"></i-icon>
+          </span>
+          <div>
+            <p>{{ k.label }}</p>
+            <strong>{{ k.value }}</strong>
+            <small [class.rh-db-kpi-hint-arrow]="k.hasArrow">
+              <span *ngIf="k.hasArrow" class="rh-db-kpi-arrow">↑</span>{{ k.hint }}
+            </small>
+          </div>
+        </article>
+      </section>
+
+      <section class="rh-db-bottom-grid">
+        <article class="rh-db-panel">
+          <h2>Congés par statut</h2>
+          <div class="rh-db-progress-list">
+            <div class="rh-db-progress-row" *ngFor="let row of leaveRows">
+              <div><span>{{ row.label }}</span><strong>{{ row.value }} ({{ row.pct }}%)</strong></div>
+              <em><i [style.width.%]="row.pct" [style.background]="row.color"></i></em>
+            </div>
+          </div>
+        </article>
+
+        <article class="rh-db-panel">
+          <h2>Effectifs par département</h2>
+          <div class="rh-db-dept-list">
+            <div class="rh-db-dept-row" *ngFor="let row of deptRows">
+              <span>{{ row.label }}</span>
+              <em><i [style.width.%]="row.pct"></i></em>
+              <strong>{{ row.value }}</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="rh-db-panel">
+          <h2>Priorités RH / alertes</h2>
+          <div class="rh-db-alert-list" *ngIf="rhAlerts.length > 0">
+            <div class="rh-db-alert" [ngClass]="'rh-db-alert-row-' + a.tone" *ngFor="let a of rhAlerts">
+              <span class="rh-db-alert-icon" [ngClass]="'rh-db-alert-icon-' + a.tone">
+                <i-icon [name]="a.icon" size="15"></i-icon>
+              </span>
+              <p>{{ a.value }} {{ a.label | lowercase }}</p>
+              <strong [ngClass]="'rh-db-alert-' + a.tone">{{ a.tone === 'critical' ? 'Critique' : (a.tone === 'medium' ?
+                'Moyen' : 'Normal') }}</strong>
+            </div>
+          </div>
+          <p class="rh-db-empty" *ngIf="rhAlerts.length === 0">Aucune alerte en cours</p>
+        </article>
+
+        <article class="rh-db-panel">
+          <h2>Dernières demandes</h2>
+          <div class="rh-db-request-list" *ngIf="recentRequests.length > 0">
+            <div class="rh-db-request" *ngFor="let r of recentRequests">
+              <span>{{ r.initials }}</span>
+              <div>
+                <p>{{ r.name }}</p>
+                <small>{{ r.type }} · {{ r.datePeriode }}</small>
+              </div>
+              <strong class="rh-db-badge" [ngClass]="r.badgeClass">{{ r.statut }}</strong>
+            </div>
+          </div>
+          <p class="rh-db-empty" *ngIf="recentRequests.length === 0">Aucune demande récente</p>
+        </article>
+      </section>
+    </main>
+
+    <div class="rh-db-loading" *ngIf="!rhDataLoaded">Chargement des données...</div>
+  </ng-container>
+
+  <ng-container *ngIf="u.role === 'EMPLOYEE'">
+    <header class="rh-db-top">
+      <div>
+        <h1>Mon espace</h1>
+        <p>Vue personnelle de mes congés, documents et éléments RH.</p>
+      </div>
+      <div class="rh-db-top-actions">
+        <div class="rh-db-month-picker-wrap">
+          <button class="rh-db-date" type="button" (click)="monthPickerOpen = !monthPickerOpen">
+            <i-icon name="calendar" size="16"></i-icon>
+            <span>{{ selectedMonthLabel }}</span>
+            <i-icon name="chevron-down" size="14"></i-icon>
+          </button>
+          <div class="rh-db-month-dropdown" *ngIf="monthPickerOpen">
+            <div class="rh-db-month-grid">
+              <button *ngFor="let m of monthOptions" type="button"
+                [class.active]="m.month === selectedMonth && m.year === selectedYear" (click)="selectMonth(m)">
+                {{ m.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="rh-db-notif-wrap">
+          <button class="rh-db-notif" type="button" aria-label="Notifications" (click)="toggleDashNotif()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+              </path>
+            </svg>
+            <span *ngIf="dashUnreadCount > 0"></span>
+          </button>
+
+          <section class="notification-panel" *ngIf="dashNotificationsOpen" (click)="$event.stopPropagation()">
+            <div class="notification-head">
+              <h2>Notifications</h2>
+              <button type="button" (click)="dashNotificationsOpen = false">×</button>
+            </div>
+            <div class="notification-list">
+              <article *ngFor="let n of notifications" class="notification-item" [class.unread]="!n.lu"
+                [ngClass]="(n.type || '').toLowerCase()" (click)="markDashNotificationRead(n)">
+                <span></span>
+                <div>
+                  <b>{{ n.titre }}</b>
+                  <p>{{ n.message }}</p>
+                  <small>{{ dashNotificationAge(n.createdAt) }}</small>
+                </div>
+              </article>
+              <p class="notification-empty" *ngIf="notifications.length === 0">Aucune notification.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </header>
+
+    <main class="rh-role-page" *ngIf="empDataLoaded">
+      <section class="rh-db-section-label"><span></span>
+        <p>Mes congés</p>
+      </section>
+
+      <section class="rh-personal-leave-grid">
+        <article class="rh-leave-total-card">
+          <p>Solde global</p>
+          <div class="rh-leave-total-main">
+            <div class="rh-leave-ring" [style.--pct]="leaveUsedPct + '%'"><strong>{{ balance?.joursRestants ?? 0
+                }}</strong><span>jours</span></div>
+            <div><strong>{{ balance?.joursRestants ?? 0 }} j restants</strong><span>sur {{ balance?.soldeAnnuel ?? 0 }}
+                jours alloués</span><span>{{ balance?.joursUtilises ?? 0 }} j pris cette année</span></div>
+          </div>
+          <div class="rh-leave-total-progress"><span>Progression annuelle</span><em><i
+                [style.width.%]="leaveUsedPct"></i></em></div>
+          <div class="rh-leave-summary">
+            <p>Résumé congés</p>
+            <div><span><small>Utilisé</small><strong>{{ leaveUsedPct }}
+                  %</strong></span><span><small>Prochaine</small><strong>{{ employeeNextAbsence
+                  }}</strong></span><span><small>En attente</small><strong>{{ employeePendingLeaves }}</strong></span>
+            </div>
+          </div>
+          <div class="rh-mini-months"><span *ngFor="let m of employeeLeaveMonths"><i
+                [style.height.%]="m.pct"></i><small>{{ m.label }}</small></span></div>
+        </article>
+
+        <article class="rh-leave-type-card" *ngFor="let c of employeeLeaveCards">
+          <div class="rh-leave-type-card-head">
+            <span class="rh-leave-type-icon" [ngClass]="'tone-' + c.tone"><i-icon [name]="c.icon"
+                size="15"></i-icon></span>
+            <h3>{{ c.label }}</h3>
+          </div>
+          <p><strong>{{ c.used }}</strong><span *ngIf="c.quota"> / {{ c.quota }} j pris</span><span *ngIf="!c.quota"> j
+              pris</span></p>
+          <em><i [style.width.%]="c.pct" [ngClass]="'fill-' + c.tone"></i></em>
+          <small>{{ c.remaining !== null ? (c.remaining + ' j restants') : 'sans quota' }}</small>
+        </article>
+      </section>
+
+      <section class="rh-db-section-label rh-db-section-label-spaced"><span></span>
+        <p>Indicateurs personnels</p>
+      </section>
+      <section class="rh-role-kpi-grid">
+        <a class="rh-role-kpi" *ngFor="let k of employeeMetrics" [routerLink]="k.route || '/dashboard'">
+          <span class="rh-db-kpi-icon" [ngClass]="'rh-db-kpi-icon-' + k.tone"><i-icon [name]="k.icon"
+              size="16"></i-icon></span>
+          <p>{{ k.label }}</p>
+          <strong>{{ k.value }}</strong>
+          <small>{{ k.hint }}</small>
+        </a>
+      </section>
+
+      <section class="rh-employee-panels">
+        <article class="rh-db-panel">
+          <div class="rh-role-panel-head">
+            <h2 class="rh-font-normal">Mes dernières demandes</h2><span>{{ myLeaves.length }}</span>
+          </div>
+          <div class="rh-role-list">
+            <div class="rh-role-line" *ngFor="let l of myLeaves">
+              <div>
+                <p>{{ l.type }} · {{ l.datePeriode }}</p>
+              </div><strong class="rh-db-badge" [ngClass]="l.badgeClass">{{ l.statut }}</strong>
+            </div>
+            <p class="rh-db-empty" *ngIf="myLeaves.length === 0">Aucune demande récente</p>
+          </div>
+        </article>
+
+        <article class="rh-db-panel">
+          <div class="rh-role-panel-head">
+            <h2 class="rh-font-normal">Mes notes de frais</h2><span>{{ myClaims.length }}</span>
+          </div>
+          <div class="rh-role-list"><a class="rh-role-line" routerLink="/my-expense-claims" *ngFor="let c of myClaims">
+              <div>
+                <p>{{ claimTitle(c) }}</p><small>{{ money(c.montant) }} MAD</small>
+              </div><strong class="rh-db-badge" [ngClass]="statusBadge(c.status)">{{ readableStatus(c.status)
+                }}</strong>
+            </a>
+            <p class="rh-db-empty" *ngIf="myClaims.length === 0">Aucune note récente</p>
+          </div>
+        </article>
+
+        <article class="rh-db-panel">
+          <div class="rh-role-panel-head">
+            <h2 class="rh-font-normal">Mes documents</h2><span>{{ myReadyDocs.length }}</span>
+          </div>
+          <div class="rh-role-list">
+            <div class="rh-role-line rh-doc-line" *ngFor="let d of myReadyDocs">
+              <div>
+                <p><i-icon name="file-text" size="13"></i-icon> {{ docLabel(d) }}</p>
+              </div><a *ngIf="downloadUrl(d.fichierUrl)" [href]="downloadUrl(d.fichierUrl)" target="_blank"
+                aria-label="Télécharger"><i-icon name="download" size="14"></i-icon></a>
+            </div>
+            <p class="rh-db-empty" *ngIf="myReadyDocs.length === 0">Aucun document prêt</p>
+          </div>
+        </article>
+      </section>
+
+      <article class="rh-db-panel rh-announcement-panel">
+        <h2><i-icon name="megaphone" size="15"></i-icon> Annonces RH</h2>
+        <a class="rh-announcement-row" *ngFor="let a of announcements"
+          [href]="a.fichierUrl ? fileUrl(a.fichierUrl) : null" [routerLink]="a.fichierUrl ? null : '/announcements'"
+          [target]="a.fichierUrl ? '_blank' : '_self'">
+          <div>
+            <p>{{ a.titre }}</p><small>Publié le {{ shortDate(a.publieAt) }} · RH</small>
+          </div>
+        </a>
+        <p class="rh-db-empty" *ngIf="announcements.length === 0">Aucune annonce</p>
+      </article>
+    </main>
+
+    <div class="rh-db-loading" *ngIf="!empDataLoaded">Chargement des données...</div>
+  </ng-container>
+
+  <ng-container *ngIf="u.role === 'MANAGER'">
+    <header class="rh-db-top">
+      <div>
+        <h1>Tableau de bord Manager</h1>
+        <p>Suivi de mon équipe, validations et activité RH.</p>
+      </div>
+      <div class="rh-db-top-actions">
+        <div class="rh-db-month-picker-wrap">
+          <button class="rh-db-date" type="button" (click)="monthPickerOpen = !monthPickerOpen">
+            <i-icon name="calendar" size="16"></i-icon>
+            <span>{{ selectedMonthLabel }}</span>
+            <i-icon name="chevron-down" size="14"></i-icon>
+          </button>
+          <div class="rh-db-month-dropdown" *ngIf="monthPickerOpen">
+            <div class="rh-db-month-grid">
+              <button *ngFor="let m of monthOptions" type="button"
+                [class.active]="m.month === selectedMonth && m.year === selectedYear" (click)="selectMonth(m)">
+                {{ m.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rh-db-notif-wrap">
+          <button class="rh-db-notif" type="button" aria-label="Notifications" (click)="toggleDashNotif()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+              </path>
+            </svg>
+            <span *ngIf="dashUnreadCount > 0"></span>
+          </button>
+
+          <section class="notification-panel" *ngIf="dashNotificationsOpen" (click)="$event.stopPropagation()">
+            <div class="notification-head">
+              <h2>Notifications</h2>
+              <button type="button" (click)="dashNotificationsOpen = false">×</button>
+            </div>
+            <div class="notification-list">
+              <article *ngFor="let n of notifications" class="notification-item" [class.unread]="!n.lu"
+                [ngClass]="(n.type || '').toLowerCase()" (click)="markDashNotificationRead(n)">
+                <span></span>
+                <div>
+                  <b>{{ n.titre }}</b>
+                  <p>{{ n.message }}</p>
+                  <small>{{ dashNotificationAge(n.createdAt) }}</small>
+                </div>
+              </article>
+              <p class="notification-empty" *ngIf="notifications.length === 0">Aucune notification.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </header>
+
+    <main class="rh-role-page" *ngIf="mgrDataLoaded">
+      <section class="rh-db-section-label"><span></span>
+        <p>Mon équipe</p>
+      </section>
+      <section class="rh-manager-kpi-grid">
+        <a class="rh-manager-kpi" *ngFor="let k of managerMetrics; let i = index" [class.primary]="i === 0"
+          [routerLink]="k.route || '/dashboard'">
+          <div class="rh-manager-kpi-top">
+            <span class="rh-db-kpi-icon" [ngClass]="'rh-db-kpi-icon-' + k.tone"><i-icon [name]="k.icon"
+                size="18"></i-icon></span>
+            <span class="rh-manager-kpi-badge">{{ k.hint }}</span>
+          </div>
+          <p>{{ k.label }}</p>
+          <strong>{{ k.value }}</strong>
+        </a>
+      </section>
+
+      <section class="rh-db-section-label rh-db-section-label-spaced"><span></span>
+        <p>Mes congés personnels</p>
+      </section>
+      <section class="rh-manager-leave-grid">
+        <article class="rh-leave-total-card compact">
+          <p>Solde global</p>
+          <div class="rh-leave-total-main">
+            <div class="rh-leave-ring" [style.--pct]="managerLeaveUsedPct + '%'"><strong>{{
+                managerBalance?.joursRestants ?? 0 }}</strong><span>jours</span></div>
+            <div><strong>{{ managerBalance?.joursRestants ?? 0 }} j restants</strong><span>sur {{
+                managerBalance?.soldeAnnuel ?? 0 }} j alloués</span><span>{{ managerBalance?.joursUtilises ?? 0 }} j
+                pris cette année</span></div>
+          </div>
+          <div class="rh-leave-total-progress"><em><i [style.width.%]="managerLeaveUsedPct"></i></em></div>
+        </article>
+        <article class="rh-leave-type-card manager" *ngFor="let c of managerLeaveCards">
+          <div class="rh-leave-type-card-head">
+            <span class="rh-leave-type-icon" [ngClass]="'tone-' + c.tone"><i-icon [name]="c.icon"
+                size="14"></i-icon></span>
+            <h3>{{ c.label }}</h3>
+          </div>
+          <p><strong>{{ c.used }}</strong><span *ngIf="c.quota"> / {{ c.quota }} j pris</span><span *ngIf="!c.quota"> j
+              pris</span></p><em><i [style.width.%]="c.pct" [ngClass]="'fill-' + c.tone"></i></em>
+        </article>
+      </section>
+
+      <section class="rh-manager-main-grid">
+        <article class="rh-db-panel">
+          <div class="rh-role-panel-head">
+            <h2 class="rh-font-normal">Validations en attente</h2><span class="rh-badge-count">{{
+              teamPendingLeaves.length + teamPendingTimesheetsList.length + teamAppraisals.length }} actions</span>
+          </div>
+          <div class="rh-validation-list">
+            <div class="rh-validation-row" *ngFor="let l of teamPendingLeaves">
+              <span>{{ l.initials }}</span>
+              <div>
+                <p>{{ l.name }}</p><small>{{ l.type }} · {{ l.datePeriode }}</small>
+              </div>
+              <a [routerLink]="['/leaves']" [queryParams]="{ viewId: l.id }" class="rh-eye-btn"
+                title="Voir les détails"><i-icon name="eye" size="14"></i-icon></a>
+            </div>
+            <div class="rh-validation-row" *ngFor="let t of teamPendingTimesheetsList">
+              <span>{{ initials(t.employeeName || '') }}</span>
+              <div>
+                <p>{{ t.employeeName || ('Salarié #' + t.employeeId) }}</p><small>Feuille de temps · {{
+                  formatSemaine(t.semaineDebut) }}</small>
+              </div>
+              <a [routerLink]="['/timesheet']" [queryParams]="{ viewId: t.id }" class="rh-eye-btn"
+                title="Voir les détails"><i-icon name="eye" size="14"></i-icon></a>
+            </div>
+            <div class="rh-validation-row" *ngFor="let a of teamAppraisals">
+              <span>{{ a.initials }}</span>
+              <div>
+                <p>{{ a.name }}</p><small>Évaluation · {{ a.detail }}</small>
+              </div>
+              <a [routerLink]="['/appraisals']" [queryParams]="{ viewId: a.id }" class="rh-eye-btn"
+                title="Voir les détails"><i-icon name="eye" size="14"></i-icon></a>
+            </div>
+            <p class="rh-db-empty"
+              *ngIf="teamPendingLeaves.length + teamPendingTimesheetsList.length + teamAppraisals.length === 0">Aucune
+              validation en attente</p>
+          </div>
+        </article>
+
+        <article class="rh-db-panel">
+          <h2 class="rh-font-normal">Congés équipe par statut</h2>
+          <div class="rh-team-donut">
+            <div class="rh-css-donut" [style.background]="teamLeaveDonutGradient"><span><small>TOTAL</small><strong>{{
+                  teamRecentLeaves.length > 0 ? teamLeaveStatusRows[0].value + teamLeaveStatusRows[1].value +
+                  teamLeaveStatusRows[2].value + teamLeaveStatusRows[3].value : 0 }}</strong></span></div>
+            <div>
+              <p *ngFor="let row of teamLeaveStatusRows"><span [style.background]="row.color"></span>{{ row.label }}
+                <strong>{{ row.value }}</strong></p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="rh-manager-secondary-grid">
+        <article class="rh-db-panel rh-project-hours">
+          <div class="rh-role-panel-head">
+            <h2 class="rh-font-normal">Heures déclarées par projet</h2><a routerLink="/timesheet">Feuilles de temps
+              équipe</a>
+          </div>
+          <div class="rh-project-row" *ngFor="let row of teamProjectHours"><span>{{ row.label }}</span><em><i
+                [style.width.%]="row.pct" [style.background]="row.color"></i></em><strong>{{ roundHours(row.hours)
+              }}h</strong></div>
+          <p class="rh-db-empty" *ngIf="teamProjectHours.length === 0">Aucune heure soumise</p>
+        </article>
+        <article class="rh-db-panel">
+          <h2 class="rh-font-normal">Absences équipe à venir</h2>
+          <div class="rh-role-list">
+            <div class="rh-person-line" *ngFor="let l of teamUpcomingLeaves"><span>{{ l.initials }}</span>
+              <div>
+                <p>{{ l.name }}</p><small>{{ l.datePeriode }}</small>
+              </div><strong class="rh-db-badge rh-db-badge-default">{{ l.type }}</strong>
+            </div>
+            <p class="rh-db-empty" *ngIf="teamUpcomingLeaves.length === 0">Aucune absence à venir</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="rh-manager-bottom-grid">
+        <article class="rh-db-panel">
+          <h2 class="rh-font-normal">Feuilles de temps équipe</h2>
+          <div class="rh-progress-team" *ngFor="let t of teamTimesheets.slice(0, 4)">
+            <div><span>{{ t.employeeName || ('Salarié #' + t.employeeId) }}</span><strong>{{ ratio(t.totalHeures || 0,
+                t.expectedHours || 35) }}%</strong></div><em><i
+                [style.width.%]="ratio(t.totalHeures || 0, t.expectedHours || 35)"></i></em>
+          </div>
+          <p class="rh-db-empty" *ngIf="teamTimesheets.length === 0">Aucune feuille soumise</p>
+        </article>
+        <article class="rh-db-panel">
+          <h2 class="rh-font-normal">Évaluations équipe</h2>
+          <div class="rh-role-list">
+            <div class="rh-person-line" *ngFor="let a of teamAppraisals"><span>{{ a.initials }}</span>
+              <div>
+                <p>{{ a.name }}</p><small>{{ a.detail }}</small>
+              </div><strong class="rh-db-badge" [ngClass]="a.badgeClass">{{ a.status }}</strong>
+            </div>
+            <p class="rh-db-empty" *ngIf="teamAppraisals.length === 0">Aucune évaluation</p>
+          </div>
+        </article>
+        <article class="rh-db-panel rh-announce-compact">
+          <div class="rh-role-panel-head">
+            <h2 class="rh-font-normal"><i-icon name="megaphone" size="15"></i-icon> Annonces RH</h2>
+          </div><a class="rh-announce-item" *ngFor="let a of managerAnnouncements"
+            [href]="a.fichierUrl ? fileUrl(a.fichierUrl) : null" [routerLink]="a.fichierUrl ? null : '/announcements'"
+            [target]="a.fichierUrl ? '_blank' : '_self'"><span class="rh-announce-doc-icon"><i-icon name="file-text"
+                size="14"></i-icon></span>
+            <div>
+              <p>{{ a.titre }}</p><small>{{ shortDate(a.publieAt) }} · RH</small>
+            </div>
+          </a>
+          <p class="rh-db-empty" *ngIf="managerAnnouncements.length === 0">Aucune annonce</p>
+        </article>
+      </section>
+    </main>
+
+    <div class="rh-db-loading" *ngIf="!mgrDataLoaded">Chargement des données...</div>
+  </ng-container>
+
+  <ng-container *ngIf="u.role === 'EMPLOYEE' && false && empDataLoaded">
+    <header class="rh-db-top rh-db-top-simple">
+      <div>
+        <h1>Mon espace</h1>
+        <p>{{ u.prenom }} {{ u.nom }} · {{ todayStr }}</p>
+      </div>
+    </header>
+
+    <section class="rh-db-simple-grid">
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-blue"><i-icon
+            name="calendar"></i-icon></span>
+        <div>
+          <p>Congés restants</p><strong>{{ balance?.joursRestants ?? 0 }}j</strong><small>solde annuel</small>
+        </div>
+      </article>
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-green"><i-icon name="clock"></i-icon></span>
+        <div>
+          <p>Congés utilisés</p><strong>{{ balance?.joursUtilises ?? 0 }}j</strong><small>sur l'année</small>
+        </div>
+      </article>
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-amber"><i-icon
+            name="file-text"></i-icon></span>
+        <div>
+          <p>En attente</p><strong>{{ myPendingCount }}</strong><small>validation</small>
+        </div>
+      </article>
+    </section>
+
+    <section class="rh-db-legacy-panel" *ngIf="balance">
+      <h2>Solde congés annuel - {{ balance.soldeAnnuel }}j</h2>
+      <div class="rh-db-progress-bar">
+        <div [style.width.%]="leaveUsedPct"></div>
+      </div>
+      <div class="rh-db-progress-legend"><span>{{ balance.joursUtilises }}j utilisés</span><span>{{
+          balance.joursRestants }}j restants</span></div>
+    </section>
+
+    <section class="rh-db-legacy-row">
+      <article class="rh-db-legacy-panel">
+        <h2>Feuille de temps</h2>
+        <div class="rh-db-ts-card">
+          <span class="rh-db-badge"
+            [ngClass]="myTimesheetStatut === 'VALIDE' ? 'rh-db-badge-approved' : (myTimesheetStatut === 'SOUMIS' ? 'rh-db-badge-pending' : 'rh-db-badge-default')">{{
+            readableStatus(myTimesheetStatut) }}</span>
+          <span *ngIf="myTimesheetSemaine">Semaine du {{ myTimesheetSemaine }}</span>
+        </div>
+        <div class="rh-db-ts-card" *ngIf="myProject">
+          <small>Projet assigné</small>
+          <strong>{{ myProject }}</strong>
+        </div>
+        <p class="rh-db-empty" *ngIf="!myProject">Aucun projet assigné</p>
+      </article>
+
+      <article class="rh-db-legacy-panel">
+        <h2>Mes demandes de congés</h2>
+        <div class="rh-db-timeline" *ngIf="myLeaves.length > 0">
+          <div class="rh-db-tl-item" *ngFor="let l of myLeaves">
+            <span>{{ l.type }} · {{ l.datePeriode }}</span>
+            <strong class="rh-db-badge" [ngClass]="l.badgeClass">{{ l.statut }}</strong>
+          </div>
+        </div>
+        <p class="rh-db-empty" *ngIf="myLeaves.length === 0">Aucune demande</p>
+      </article>
+    </section>
+
+    <section class="rh-db-legacy-row">
+      <article class="rh-db-legacy-panel">
+        <h2>Mes demandes de documents</h2>
+        <div class="rh-db-timeline" *ngIf="myDocRequests.length > 0">
+          <div class="rh-db-tl-item" *ngFor="let d of myDocRequests">
+            <span>{{ d.typeDoc }}</span>
+            <strong class="rh-db-badge"
+              [ngClass]="d.statut === 'PRET' ? 'rh-db-badge-approved' : (d.statut === 'REFUSE' ? 'rh-db-badge-refused' : 'rh-db-badge-pending')">{{
+              readableStatus(d.statut) }}</strong>
+          </div>
+        </div>
+        <p class="rh-db-empty" *ngIf="myDocRequests.length === 0">Aucune demande</p>
+      </article>
+
+      <article class="rh-db-legacy-panel">
+        <h2>Annonces RH</h2>
+        <div class="rh-db-ann" *ngFor="let a of announcements">
+          <p>{{ a.titre }}</p>
+          <small>{{ a.contenu }}</small>
+          <a *ngIf="a.fichierUrl" [href]="fileUrl(a.fichierUrl)" target="_blank">Voir le document joint</a>
+        </div>
+        <p class="rh-db-empty" *ngIf="announcements.length === 0">Aucune annonce</p>
+      </article>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="u.role === 'MANAGER' && false && mgrDataLoaded">
+    <header class="rh-db-top rh-db-top-simple">
+      <div>
+        <h1>Tableau de bord Manager</h1>
+        <p>{{ u.prenom }} {{ u.nom }} · {{ todayStr }}</p>
+      </div>
+    </header>
+    <section class="rh-db-simple-grid rh-db-simple-grid-4">
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-blue"><i-icon name="users"></i-icon></span>
+        <div>
+          <p>Membres de l'équipe</p><strong>{{ teamSize }}</strong><small>actifs</small>
+        </div>
+      </article>
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-amber"><i-icon
+            name="calendar"></i-icon></span>
+        <div>
+          <p>Congés à valider</p><strong>{{ teamPendingLeaves.length }}</strong><small>en attente</small>
+        </div>
+      </article>
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-blue"><i-icon name="clock"></i-icon></span>
+        <div>
+          <p>Feuilles de temps</p><strong>{{ teamPendingTimesheets }}</strong><small>à valider</small>
+        </div>
+      </article>
+      <article class="rh-db-kpi"><span class="rh-db-kpi-icon rh-db-kpi-icon-green"><i-icon
+            name="check-circle"></i-icon></span>
+        <div>
+          <p>Congés à venir</p><strong>{{ teamUpcomingLeaves.length }}</strong><small>approuvés</small>
+        </div>
+      </article>
+    </section>
+
+    <section class="rh-db-legacy-row">
+      <article class="rh-db-legacy-panel">
+        <h2>Validations en attente</h2>
+        <div class="rh-db-timeline" *ngIf="teamPendingLeaves.length > 0">
+          <div class="rh-db-tl-item" *ngFor="let l of teamPendingLeaves">
+            <span><b>{{ l.name }}</b><small>{{ l.type }} · {{ l.datePeriode }}</small></span>
+            <strong class="rh-db-badge" [ngClass]="l.badgeClass">{{ l.statut }}</strong>
+          </div>
+        </div>
+        <p class="rh-db-empty" *ngIf="teamPendingLeaves.length === 0">Aucune validation en attente</p>
+      </article>
+
+      <article class="rh-db-legacy-panel">
+        <h2>Congés approuvés à venir</h2>
+        <div class="rh-db-timeline" *ngIf="teamUpcomingLeaves.length > 0">
+          <div class="rh-db-tl-item" *ngFor="let l of teamUpcomingLeaves">
+            <span><b>{{ l.name }}</b><small>{{ l.type }} · {{ l.datePeriode }}</small></span>
+            <strong class="rh-db-badge rh-db-badge-approved">Approuvé</strong>
+          </div>
+        </div>
+        <p class="rh-db-empty" *ngIf="teamUpcomingLeaves.length === 0">Aucun congé à venir</p>
+      </article>
+    </section>
+
+    <section class="rh-db-legacy-row">
+      <article class="rh-db-legacy-panel">
+        <h2>Mon solde congés</h2>
+        <div class="rh-db-mini-stats" *ngIf="managerBalance">
+          <span><strong>{{ managerBalance.joursRestants }}j</strong><small>Restants</small></span>
+          <span><strong>{{ managerBalance.joursUtilises }}j</strong><small>Utilisés</small></span>
+          <span><strong>{{ managerBalance.soldeAnnuel }}j</strong><small>Annuel</small></span>
+        </div>
+        <div class="rh-db-progress-bar" *ngIf="managerBalance">
+          <div [style.width.%]="managerLeaveUsedPct"></div>
+        </div>
+        <div class="rh-db-ts-card"><small>Feuille de temps</small><strong class="rh-db-badge"
+            [ngClass]="myTimesheetStatut === 'VALIDE' ? 'rh-db-badge-approved' : (myTimesheetStatut === 'SOUMIS' ? 'rh-db-badge-pending' : 'rh-db-badge-default')">{{
+            readableStatus(myTimesheetStatut) }}</strong></div>
+        <div class="rh-db-ts-card" *ngIf="myProject"><small>Projet</small><strong>{{ myProject }}</strong></div>
+      </article>
+
+      <article class="rh-db-legacy-panel">
+        <h2>Annonces RH</h2>
+        <div class="rh-db-ann" *ngFor="let a of managerAnnouncements">
+          <p>{{ a.titre }}</p>
+          <small>{{ a.contenu }}</small>
+          <a *ngIf="a.fichierUrl" [href]="fileUrl(a.fichierUrl)" target="_blank">Voir le document joint</a>
+        </div>
+        <p class="rh-db-empty" *ngIf="managerAnnouncements.length === 0">Aucune annonce</p>
+      </article>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="u.role === 'ADMIN'">
+    <header class="rh-db-top">
+      <div>
+        <h1>Tableau de bord Admin</h1>
+        <p>Santé des accès, état des comptes et hygiène utilisateurs.</p>
+      </div>
+      <div class="rh-db-top-actions">
+        <div class="rh-db-month-picker-wrap">
+          <button class="rh-db-date" type="button" (click)="monthPickerOpen = !monthPickerOpen">
+            <i-icon name="calendar" size="16"></i-icon>
+            <span>{{ selectedMonthLabel }}</span>
+            <i-icon name="chevron-down" size="14"></i-icon>
+          </button>
+          <div class="rh-db-month-dropdown" *ngIf="monthPickerOpen">
+            <div class="rh-db-month-grid">
+              <button *ngFor="let m of monthOptions" type="button"
+                [class.active]="m.month === selectedMonth && m.year === selectedYear" (click)="selectMonth(m)">
+                {{ m.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="rh-db-notif-wrap">
+          <button class="rh-db-notif" type="button" aria-label="Notifications" (click)="toggleDashNotif()">
+            <i-icon name="bell" size="17"></i-icon>
+            <span *ngIf="dashUnreadCount > 0"></span>
+          </button>
+          <section class="notification-panel" *ngIf="dashNotificationsOpen" (click)="$event.stopPropagation()">
+            <div class="notification-head">
+              <h2>Notifications</h2>
+              <button type="button" (click)="dashNotificationsOpen = false">×</button>
+            </div>
+            <div class="notification-list">
+              <article *ngFor="let n of notifications" class="notification-item" [class.unread]="!n.lu"
+                [ngClass]="(n.type || '').toLowerCase()" (click)="markDashNotificationRead(n)">
+                <span></span>
+                <div>
+                  <b>{{ n.titre }}</b>
+                  <p>{{ n.message }}</p>
+                  <small>{{ dashNotificationAge(n.createdAt) }}</small>
+                </div>
+              </article>
+              <p class="notification-empty" *ngIf="notifications.length === 0">Aucune notification.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </header>
+
+    <main class="rh-role-page rh-admin-page" *ngIf="adminDataLoaded">
+      <section class="rh-admin-hero-grid">
+        <article class="rh-admin-health-card">
+          <p><i-icon name="shield" size="14"></i-icon> Santé des accès</p>
+          <div class="rh-admin-health-main">
+            <div class="rh-admin-health-ring" [style.--pct]="adminSummary.tauxActivation + '%'">
+              <strong>{{ adminSummary.tauxActivation }}%</strong><span>actifs</span>
+            </div>
+            <div><strong>{{ adminSummary.totalComptes }} comptes</strong><span>suivis sur la plateforme</span></div>
+          </div>
+          <div class="rh-admin-health-split">
+            <span><small>Actifs</small><strong>{{ adminSummary.comptesActifs }}</strong></span>
+            <span><small>En attente</small><strong>{{ adminSummary.comptesEnAttente }}</strong></span>
+            <span><small>Désact.</small><strong>{{ adminSummary.comptesDesactives }}</strong></span>
+          </div>
+        </article>
+
+        <section class="rh-admin-kpis">
+          <article class="rh-admin-kpi">
+            <span class="rh-db-kpi-icon rh-db-kpi-icon-green"><i-icon name="user-check" size="16"></i-icon></span>
+            <em>actuels</em><p>Comptes actifs</p><strong>{{ adminSummary.comptesActifs }}</strong>
+          </article>
+          <article class="rh-admin-kpi">
+            <span class="rh-db-kpi-icon rh-db-kpi-icon-amber"><i-icon name="clock" size="16"></i-icon></span>
+            <em>à activer</em><p>Comptes en attente</p><strong>{{ adminSummary.comptesEnAttente }}</strong>
+          </article>
+          <article class="rh-admin-kpi">
+            <span class="rh-db-kpi-icon rh-db-kpi-icon-red"><i-icon name="user-x" size="16"></i-icon></span>
+            <em>archivés</em><p>Comptes désactivés</p><strong>{{ adminSummary.comptesDesactives }}</strong>
+          </article>
+          <article class="rh-admin-kpi">
+            <span class="rh-db-kpi-icon rh-db-kpi-icon-amber"><i-icon name="user-plus" size="16"></i-icon></span>
+            <em>à rattacher</em><p>Sans manager</p><strong>{{ adminSummary.sansManager }}</strong>
+          </article>
+          <article class="rh-admin-kpi">
+            <span class="rh-db-kpi-icon rh-db-kpi-icon-red"><i-icon name="eye-off" size="16"></i-icon></span>
+            <em>à surveiller</em><p>Jamais connectés</p><strong>{{ adminSummary.jamaisConnectes }}</strong>
+          </article>
+          <article class="rh-admin-kpi">
+            <span class="rh-db-kpi-icon rh-db-kpi-icon-blue"><i-icon name="activity" size="16"></i-icon></span>
+            <em>global</em><p>Taux d'activation</p><strong>{{ adminSummary.tauxActivation }}%</strong>
+          </article>
+        </section>
+      </section>
+
+      <section class="rh-admin-chart-grid">
+        <article class="rh-db-panel rh-admin-status-card">
+          <h2 class="rh-font-normal">Répartition par statut</h2>
+          <div class="rh-admin-status-body">
+            <div class="rh-admin-donut" [style.--active]="adminSummary.repartitionStatut[0].pct || 0"
+              [style.--pending]="adminSummary.repartitionStatut[1].pct || 0">
+              <span>Total<strong>{{ adminSummary.totalComptes }}</strong></span>
+            </div>
+            <div class="rh-admin-legend">
+              <p *ngFor="let row of adminSummary.repartitionStatut"><i [ngClass]="'tone-' + row.tone"></i>{{ row.label
+                }}<strong>{{ row.value }}</strong></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="rh-db-panel rh-admin-bars-card">
+          <h2 class="rh-font-normal">Répartition par rôle <i-icon name="users" size="14"></i-icon></h2>
+          <div class="rh-admin-bar-row" *ngFor="let row of adminSummary.repartitionRole">
+            <div><span>{{ row.label }}</span><strong>{{ row.value }}</strong></div>
+            <em><i [ngClass]="'fill-' + row.tone" [style.width.%]="row.pct"></i></em>
+          </div>
+        </article>
+
+        <article class="rh-db-panel rh-admin-bars-card">
+          <h2 class="rh-font-normal">Comptes par département <i-icon name="building" size="14"></i-icon></h2>
+          <div class="rh-admin-dept-row" *ngFor="let row of adminSummary.repartitionDepartement">
+            <span class="dept-label">{{ row.label }}</span>
+            <span class="dept-bar-wrap"><em><i [ngClass]="'fill-dept-' + row.tone" [style.width.%]="row.pct"></i></em></span>
+            <strong class="dept-count">{{ row.value }}</strong>
+          </div>
+          <p class="rh-db-empty" *ngIf="adminSummary.repartitionDepartement.length === 0">Aucun département</p>
+        </article>
+      </section>
+
+      <section class="rh-db-section-label rh-db-section-label-spaced"><span></span>
+        <p>Hygiène des accès</p>
+      </section>
+      <section class="rh-admin-hygiene-grid">
+        <article class="rh-admin-hygiene" *ngFor="let h of adminSummary.hygieneAcces">
+          <span class="rh-db-kpi-icon" [ngClass]="'rh-db-kpi-icon-' + h.tone">
+            <i-icon [name]="h.tone === 'red' ? 'eye-off' : 'clock'" size="15"></i-icon>
+          </span>
+          <div><p>{{ h.label }}</p><strong>{{ h.value }}</strong></div>
+          <em [ngClass]="'hygiene-badge-' + h.tone">{{ h.status }}</em>
+        </article>
+      </section>
+
+      <article class="rh-db-panel rh-admin-watch-card">
+        <div class="rh-admin-watch-head">
+          <div><span><i-icon name="alert-triangle" size="14"></i-icon></span><h2 class="rh-font-normal">Comptes à surveiller</h2><p>Priorités d'accès à traiter</p></div>
+          <em>{{ adminSummary.comptesASurveiller.length }} comptes</em>
+        </div>
+        <div class="rh-admin-watch-table">
+          <div class="rh-admin-watch-header"><span>Utilisateur</span><span>Rôle</span><span>Statut</span><span>Priorité</span><span>Détail</span></div>
+          <div class="rh-admin-watch-row" *ngFor="let row of adminSummary.comptesASurveiller; let i = index">
+            <div><span class="rh-admin-avatar" [ngClass]="'avatar-idx-' + (i % 6)">{{ row.initials }}</span><p>{{ row.name }}</p></div>
+            <span>{{ row.role }}</span>
+            <em class="watch-status" [ngClass]="'watch-status-' + row.tone">{{ row.status }}</em>
+            <em class="watch-priority" [ngClass]="'watch-priority-' + row.tone">{{ row.priority }}</em>
+            <span class="watch-detail">{{ row.detail }}</span>
+          </div>
+        </div>
+        <p class="rh-db-empty" *ngIf="adminSummary.comptesASurveiller.length === 0">Aucun compte à surveiller</p>
+      </article>
+    </main>
+
+    <div class="rh-db-loading" *ngIf="!adminDataLoaded">Chargement des données...</div>
+  </ng-container>
+</div>

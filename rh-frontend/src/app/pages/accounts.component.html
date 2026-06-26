@@ -1,0 +1,236 @@
+<section class="accounts-page">
+  <header class="rh-db-top">
+    <div>
+      <h1>Administration des comptes</h1>
+      <p>Activation, suspension et réinitialisation des accès collaborateurs.</p>
+    </div>
+    <div class="rh-db-top-actions">
+      <button class="rh-db-notif" type="button" (click)="reload()" title="Actualiser">
+        <i-icon name="refresh-cw" size="18"></i-icon>
+      </button>
+    </div>
+  </header>
+
+  <div class="info-banner">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 16v-4M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+    Les mots de passe temporaires sont envoyés par email et doivent être changés à la première connexion.
+  </div>
+
+  <div class="stats">
+    <article class="stat-card pending">
+      <span>En attente</span>
+      <strong>{{ count('pending') }}</strong>
+      <i><svg viewBox="0 0 24 24">
+          <path d="M12 8v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg></i>
+    </article>
+    <article class="stat-card active">
+      <span>Actifs</span>
+      <strong>{{ count('active') }}</strong>
+      <i><svg viewBox="0 0 24 24">
+          <path d="m9 12 2 2 4-5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg></i>
+    </article>
+    <article class="stat-card disabled">
+      <span>Désactivés</span>
+      <strong>{{ count('disabled') }}</strong>
+      <i><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg></i>
+    </article>
+  </div>
+
+  <main class="accounts-panel">
+    <div class="panel-toolbar">
+      <div class="tabs" role="tablist">
+        <button type="button" [class.active]="tab === 'pending'" (click)="setTab('pending')">
+          En attente <span>{{ count('pending') }}</span>
+        </button>
+        <button type="button" [class.active]="tab === 'active'" (click)="setTab('active')">
+          Actifs <span>{{ count('active') }}</span>
+        </button>
+        <button type="button" [class.active]="tab === 'disabled'" (click)="setTab('disabled')">
+          Désactivés <span>{{ count('disabled') }}</span>
+        </button>
+      </div>
+
+      <div class="tools">
+        <label class="search">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+          </svg>
+          <input [(ngModel)]="search" type="search" placeholder="Rechercher par nom ou email" />
+        </label>
+        <label class="role-filter">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 5h18l-7 8v5l-4 2v-7Z" />
+          </svg>
+          <select [(ngModel)]="roleFilter">
+            <option value="ALL">Tous les rôles</option>
+            <option value="EMPLOYEE">Employés</option>
+            <option value="MANAGER">Managers</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="state error" *ngIf="error">{{ error }}</div>
+    <div class="table-shell" *ngIf="!error">
+      <table>
+        <thead>
+          <tr>
+            <th>Collaborateur</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Statut</th>
+            <th>Dernière connexion</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody *ngIf="!loading">
+          <tr *ngFor="let u of rows">
+            <td class="person">
+              <b>{{ initials(u) }}</b>
+              <span>
+                <strong>{{ fullName(u) }}</strong>
+                <small>{{ u.matricule || 'Matricule non renseigné' }}</small>
+              </span>
+            </td>
+            <td>{{ u.email }}</td>
+            <td><span class="pill role">{{ roleLabel(u.role) }}</span></td>
+            <td><span class="pill status" [class.pending]="tab === 'pending'" [class.active]="tab === 'active'"
+                [class.disabled]="tab === 'disabled'">{{ statusLabel(u) }}</span></td>
+            <td>{{ u.lastLogin ? (u.lastLogin | date:'yyyy-MM-dd HH:mm') : 'Jamais connecté' }}</td>
+            <td class="actions">
+              <button class="btn btn-ghost compact" type="button" title="Details" (click)="openDetails(u)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path
+                    d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button *ngIf="tab === 'pending'" class="btn btn-primary compact" type="button" title="Envoyer accès"
+                (click)="openConfirm('create', u)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="m22 2-7 20-4-9-9-4Z" />
+                  <path d="M22 2 11 13" />
+                </svg>
+              </button>
+              <button *ngIf="tab === 'active'" class="btn btn-ghost compact" type="button" title="Reset MDP"
+                (click)="openConfirm('reset', u)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
+                  <circle cx="16.5" cy="7.5" r=".5" />
+                </svg>
+              </button>
+              <button *ngIf="tab === 'active'" class="btn btn-danger compact" type="button" title="Suspendre"
+                (click)="openConfirm('deactivate', u)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="17" x2="22" y1="8" y2="13" />
+                  <line x1="22" x2="17" y1="8" y2="13" />
+                </svg>
+              </button>
+              <button *ngIf="tab === 'disabled'" class="btn btn-success compact" type="button" title="Réactiver"
+                (click)="openConfirm('reactivate', u)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <polyline points="16 11 18 13 22 9" />
+                </svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="skeleton" *ngIf="loading">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="state" *ngIf="!loading && rows.length === 0">
+        Aucun compte dans cette section.
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" *ngIf="toast" [class.error]="toast.type === 'error'">
+    {{ toast.message }}
+    <button type="button" (click)="toast = null">x</button>
+  </div>
+</section>
+
+<div class="drawer-backdrop" *ngIf="detailsUser" (click)="closeDetails()"></div>
+<aside class="details-drawer" *ngIf="detailsUser as u">
+  <header>
+    <div class="avatar">{{ initials(u) }}</div>
+    <h2>{{ fullName(u) }}</h2>
+    <p>{{ u.email }}</p>
+    <div class="drawer-badges">
+      <span class="pill role">{{ roleLabel(u.role) }}</span>
+      <span class="pill status" [class.pending]="tab === 'pending'" [class.active]="tab === 'active'"
+        [class.disabled]="tab === 'disabled'">{{ statusLabel(u) }}</span>
+    </div>
+  </header>
+  <section>
+    <h3>Informations compte</h3>
+    <dl>
+      <div>
+        <dt>Matricule</dt>
+        <dd>{{ u.matricule || 'Non renseigné' }}</dd>
+      </div>
+      <div>
+        <dt>Poste</dt>
+        <dd>{{ u.poste || 'Non renseigné' }}</dd>
+      </div>
+      <div>
+        <dt>Departement</dt>
+        <dd>{{ u.departement || 'Non renseigné' }}</dd>
+      </div>
+      <div>
+        <dt>Manager</dt>
+        <dd>{{ managerName(u.managerId) }}</dd>
+      </div>
+      <div>
+        <dt>Première connexion</dt>
+        <dd>{{ firstLoginLabel(u) }}</dd>
+      </div>
+      <div>
+        <dt>Créé le</dt>
+        <dd>{{ u.createdAt ? (u.createdAt | date:'yyyy-MM-dd HH:mm') : 'Non renseigné' }}</dd>
+      </div>
+      <div>
+        <dt>Dernière connexion</dt>
+        <dd>{{ u.lastLogin ? (u.lastLogin | date:'yyyy-MM-dd HH:mm') : 'Jamais connecté' }}</dd>
+      </div>
+    </dl>
+  </section>
+</aside>
+
+<div class="modal-backdrop" *ngIf="confirm">
+  <section class="confirm-modal" [class.danger]="confirm.action === 'deactivate'">
+    <div class="modal-header">
+      <div class="modal-icon">
+        <svg *ngIf="confirm.action === 'create'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        <svg *ngIf="confirm.action === 'reset'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+        <svg *ngIf="confirm.action === 'deactivate'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+        <svg *ngIf="confirm.action === 'reactivate'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <div class="modal-copy">
+        <h2>{{ modalTitle() }}</h2>
+        <p>{{ modalText() }}</p>
+      </div>
+      <button class="modal-close" type="button" (click)="closeConfirm()">&#x2715;</button>
+    </div>
+    <footer>
+      <button class="btn btn-ghost" type="button" (click)="closeConfirm()">Annuler</button>
+      <button class="btn" [class.btn-primary]="confirm.action !== 'deactivate'" [class.btn-danger]="confirm.action === 'deactivate'" type="button" (click)="runConfirm()">
+        {{ modalPrimaryLabel() }}
+      </button>
+    </footer>
+  </section>
+</div>

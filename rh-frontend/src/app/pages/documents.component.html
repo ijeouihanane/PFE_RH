@@ -1,0 +1,291 @@
+<section class="docs-page" [class.docs-employee]="!isRh">
+  <div class="docs-kpis">
+    <article class="docs-kpi">
+      <div class="docs-kpi-content">
+        <span>En attente</span>
+        <strong>{{ pendingCount }}</strong>
+        <small *ngIf="isRh">à traiter</small>
+      </div>
+      <span class="docs-stat-icon docs-icon-orange"><i-icon name="clock" size="16"></i-icon></span>
+    </article>
+    <article class="docs-kpi">
+      <div class="docs-kpi-content">
+        <span>{{ isRh ? 'Prêt' : 'Prêts à télécharger' }}</span>
+        <strong>{{ readyCount }}</strong>
+      </div>
+      <span class="docs-stat-icon docs-icon-green"><i-icon name="check-circle" size="16"></i-icon></span>
+    </article>
+    <article class="docs-kpi">
+      <div class="docs-kpi-content">
+        <span>Refusées</span>
+        <strong>{{ refusedCount }}</strong>
+      </div>
+      <span class="docs-stat-icon docs-icon-red"><i-icon name="x-circle" size="16"></i-icon></span>
+    </article>
+    <article class="docs-kpi">
+      <div class="docs-kpi-content">
+        <span>Total</span>
+        <strong>{{ requests.length }}</strong>
+      </div>
+      <span class="docs-stat-icon docs-icon-blue"><i-icon name="file-text" size="16"></i-icon></span>
+    </article>
+  </div>
+
+  <article class="docs-card" *ngIf="isRh; else employeeView">
+    <h2><i-icon name="inbox" size="15"></i-icon> Toutes les demandes</h2>
+    <div class="docs-filter-row">
+      <div class="docs-search">
+        <i-icon name="search" size="16"></i-icon>
+        <input [value]="rhSearch" (input)="rhSearch = $any($event.target).value"
+          placeholder="Rechercher (nom, matricule)..." />
+      </div>
+      <select [value]="rhTypeFilter" (change)="rhTypeFilter = $any($event.target).value">
+        <option value="ALL">Tous types</option>
+        <option *ngFor="let t of docTypes" [value]="t.value">{{ t.label }}</option>
+      </select>
+      <select [value]="rhStatusFilter" (change)="rhStatusFilter = $any($event.target).value">
+        <option value="ALL">Tous statuts</option>
+        <option value="EN_ATTENTE">En attente</option>
+        <option value="PRET">Prêt</option>
+        <option value="REFUSE">Refusée</option>
+      </select>
+    </div>
+
+    <div class="docs-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employé</th>
+            <th>Département</th>
+            <th>Type</th>
+            <th>Détails</th>
+            <th>Date</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of filteredRhRequests">
+            <td>
+              <div class="docs-person">
+                <strong>{{ employeeName(r.employeeId) }}</strong>
+                <small>{{ employeeMatricule(r.employeeId) }}</small>
+              </div>
+            </td>
+            <td>{{ employeeDepartment(r.employeeId) }}</td>
+            <td style="white-space: nowrap">{{ typeLabel(r.typeDoc) }}</td>
+            <td class="docs-muted">{{ details(r) }}</td>
+            <td>{{ r.createdAt | date:'dd MMMM yyyy' }}</td>
+            <td>
+              <span class="docs-status" [ngClass]="'docs-status-' + r.statut.toLowerCase()">
+                <i-icon [name]="statusIcon(r.statut)" size="12"></i-icon>
+                {{ statusLabel(r.statut) }}
+              </span>
+            </td>
+            <td>
+              <button class="docs-eye" type="button" (click)="openDrawer(r)" title="Voir la demande">
+                <i-icon name="eye" size="15"></i-icon>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredRhRequests.length === 0">
+            <td colspan="7" style="text-align: center; font-style: italic; color: #64748b; padding: 24px;">Aucune
+              demande trouvée.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <ng-template #employeeView>
+    <article class="docs-card">
+      <div class="docs-card-head">
+        <h2>Historique de mes demandes</h2>
+        <button class="docs-primary" type="button" (click)="openRequestModal()">
+          <i-icon name="plus" size="15"></i-icon>
+          Nouvelle demande
+        </button>
+      </div>
+
+      <div class="docs-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Référence</th>
+              <th>Type</th>
+              <th>Détails</th>
+              <th>Date</th>
+              <th>Statut</th>
+              <th>Motif</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of myRequests">
+              <td><strong>{{ reference(r) }}</strong></td>
+              <td style="white-space: nowrap">{{ typeLabel(r.typeDoc) }}</td>
+              <td class="docs-muted">{{ details(r) }}</td>
+              <td>{{ r.createdAt | date:'dd MMMM yyyy' }}</td>
+              <td>
+                <span class="docs-status" [ngClass]="'docs-status-' + r.statut.toLowerCase()">
+                  <i-icon [name]="statusIcon(r.statut)" size="12"></i-icon>
+                  {{ statusLabel(r.statut) }}
+                </span>
+              </td>
+              <td>
+                <span *ngIf="r.statut === 'REFUSE' && r.commentaire" class="docs-motif-cell">{{ r.commentaire }}</span>
+                <span *ngIf="r.statut !== 'REFUSE'" class="docs-muted docs-no-motif">—</span>
+                <span *ngIf="r.statut === 'REFUSE' && !r.commentaire" class="docs-muted">—</span>
+              </td>
+              <td>
+                <a *ngIf="r.fichierUrl" class="docs-download-mini" [href]="fileUrl(r.fichierUrl)" target="_blank">
+                  <i-icon name="download" size="14"></i-icon>
+                  Télécharger
+                </a>
+                <span *ngIf="!r.fichierUrl" class="docs-muted">—</span>
+              </td>
+            </tr>
+            <tr *ngIf="myRequests.length === 0">
+              <td colspan="7" style="text-align: center; font-style: italic; color: #64748b; padding: 24px;">Aucune
+                demande pour le moment.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </ng-template>
+
+  <div class="docs-modal-backdrop" *ngIf="showRequestModal">
+    <section class="docs-modal">
+      <h2>Nouvelle demande de document</h2>
+      <p>Sélectionnez le type de document souhaité.</p>
+
+      <form [formGroup]="requestForm" (ngSubmit)="submitRequest()">
+        <label>Type de document *</label>
+        <select formControlName="typeDoc">
+          <option *ngFor="let t of docTypes" [value]="t.value">{{ t.label }}</option>
+        </select>
+
+        <div class="docs-form-grid" *ngIf="isPayslipRequest">
+          <div>
+            <label>Mois *</label>
+            <select formControlName="mois">
+              <option *ngFor="let m of months" [value]="m">{{ m | number:'2.0' }}</option>
+            </select>
+          </div>
+          <div>
+            <label>Année *</label>
+            <select formControlName="annee">
+              <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
+
+        <label>{{ isOtherRequest ? 'Commentaire *' : 'Commentaire (optionnel)' }}</label>
+        <textarea rows="4" formControlName="commentaireDemande"
+          [placeholder]="isOtherRequest ? 'Précisez votre besoin...' : 'Information complémentaire...'"></textarea>
+
+        <p class="docs-error" *ngIf="error">{{ error }}</p>
+        <div class="docs-modal-actions">
+          <button type="button" class="docs-cancel" (click)="closeRequestModal()">Annuler</button>
+          <button type="submit" class="docs-primary"
+            [disabled]="isSubmitting || (isOtherRequest && !requestForm.controls.commentaireDemande.value.trim())">
+            <i-icon name="send" size="15"></i-icon>
+            Envoyer la demande
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="docs-drawer-layer" *ngIf="selectedRequest">
+    <div class="docs-drawer-shade" (click)="closeDrawer()"></div>
+    <aside class="docs-drawer">
+
+      <div class="docs-drawer-overlay" *ngIf="showRefuseModal">
+        <section class="docs-modal docs-modal-sm">
+          <h2>Motif de refus</h2>
+          <p>Veuillez indiquer la raison du refus (sera visible par le collaborateur).</p>
+          <textarea rows="4" [(ngModel)]="refuseComment" placeholder="Saisir le motif détaillé..."></textarea>
+          <p class="docs-error" *ngIf="drawerError">{{ drawerError }}</p>
+          <div class="docs-modal-actions">
+            <button type="button" class="docs-cancel" (click)="closeRefuseModal()">Annuler</button>
+            <button type="button" class="docs-danger" [disabled]="!refuseComment.trim()" (click)="confirmRefuse()">
+              <i-icon name="x-circle" size="15"></i-icon>
+              Confirmer
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <button class="docs-drawer-close" type="button" (click)="closeDrawer()">
+        <i-icon name="x" size="16"></i-icon>
+      </button>
+
+      <small>{{ reference(selectedRequest) }}</small>
+      <h2>{{ typeLabel(selectedRequest.typeDoc) }}</h2>
+
+      <div class="docs-drawer-summary">
+        <div><strong>Employé</strong><span>{{ employeeName(selectedRequest.employeeId) }}</span></div>
+        <div><strong>Matricule</strong><span>{{ employeeMatricule(selectedRequest.employeeId) }}</span></div>
+        <div><strong>Département</strong><span>{{ employeeDepartment(selectedRequest.employeeId) }}</span></div>
+        <div><strong>Date</strong><span>{{ selectedRequest.createdAt | date:'dd MMMM yyyy' }}</span></div>
+        <div *ngIf="selectedRequest.typeDoc === 'FICHE_PAIE'"><strong>Période</strong><span>{{ details(selectedRequest)
+            }}</span></div>
+        <div><strong>Statut</strong><span class="docs-status"
+            [ngClass]="'docs-status-' + selectedRequest.statut.toLowerCase()">{{ statusLabel(selectedRequest.statut)
+            }}</span></div>
+      </div>
+
+      <section *ngIf="selectedRequest.commentaireDemande" class="docs-drawer-block">
+        <h3>Commentaire du demandeur</h3>
+        <p>{{ selectedRequest.commentaireDemande }}</p>
+      </section>
+
+      <section *ngIf="selectedRequest.commentaire" class="docs-drawer-block docs-drawer-refusal">
+        <h3>Motif de refus</h3>
+        <p>{{ selectedRequest.commentaire }}</p>
+      </section>
+
+      <section class="docs-drawer-block">
+        <h3>Historique de traitement</h3>
+        <div class="docs-timeline-item">
+          <span class="docs-dot-blue"></span>
+          <div>Demande créée<small>{{ selectedRequest.createdAt | date:'EEE dd MMM HH:mm' }}</small></div>
+        </div>
+        <div class="docs-timeline-item" *ngIf="selectedRequest.processedAt">
+          <span [class]="selectedRequest.statut === 'PRET' ? 'docs-dot-green' : 'docs-dot-red'"></span>
+          <div>{{ selectedRequest.statut === 'PRET' ? 'Document préparé' : 'Refusée' }}<small>{{
+              selectedRequest.processedAt | date:'EEE dd MMM HH:mm' }}</small></div>
+        </div>
+      </section>
+
+      <section class="docs-drawer-block" *ngIf="selectedRequest.statut === 'EN_ATTENTE'">
+        <h3>Téléverser le document (PDF)</h3>
+        <label class="docs-upload-zone">
+          <i-icon name="upload" size="15"></i-icon>
+          <span>{{ selectedFile ? selectedFile.name : 'Choisir un fichier PDF' }}</span>
+          <input type="file" accept="application/pdf,.pdf" (change)="onDrawerFileSelected($event)" />
+        </label>
+        <p class="docs-error" *ngIf="drawerError && !showRefuseModal">{{ drawerError }}</p>
+      </section>
+
+      <a *ngIf="selectedRequest.fichierUrl" class="docs-drawer-download" [href]="fileUrl(selectedRequest.fichierUrl)"
+        target="_blank">
+        <i-icon name="download" size="15"></i-icon>
+        Télécharger
+      </a>
+
+      <div class="docs-drawer-actions" *ngIf="selectedRequest.statut === 'EN_ATTENTE'">
+        <button type="button" class="docs-danger" (click)="openRefuseModal()">
+          <i-icon name="x-circle" size="15"></i-icon>
+          Refuser
+        </button>
+        <button type="button" class="docs-ready" [disabled]="!selectedFile" (click)="markReady()">
+          <i-icon name="check-circle" size="15"></i-icon>
+          Marquer comme prêt
+        </button>
+      </div>
+    </aside>
+  </div>
+</section>

@@ -1,0 +1,82 @@
+# Build outputs
+target/
+build/
+dist/
+out/
+
+# Java / Maven
+*.class
+*.jar
+*.war
+*.ear
+.mvn/timing.properties
+
+# Frontend / Angular / Node
+node_modules/
+.angular/
+.cache/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local ChromaDB / vector stores
+chroma/
+chromadb/
+chroma_db/
+chroma.sqlite3
+*.sqlite
+*.sqlite3
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+!.env.sample
+application-local.properties
+application-local.yml
+application-local.yaml
+application-dev-local.properties
+application-dev-local.yml
+application-dev-local.yaml
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Logs and temporary files
+logs/
+_logs/
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Runtime uploads and generated user files
+uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local scratch space
+scratch/
