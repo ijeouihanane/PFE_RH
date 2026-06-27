@@ -45,7 +45,7 @@ export class ShellComponent implements OnInit {
     { label: 'Mes appréciations', path: '/appraisals/me', roles: ['EMPLOYEE', 'MANAGER'], icon: 'user-check' },
     { label: 'Appréciations', path: '/appraisals/view', roles: ['RH'], icon: 'star', exact: true },
     { label: 'Messagerie', path: '/messaging', roles: ['RH', 'EMPLOYEE', 'MANAGER'], icon: 'message-square' },
-    { label: 'Base doc. IA', path: '/ai-docs', roles: ['RH'], icon: 'book-open' },
+    { label: 'Référentiel RH', path: '/ai-docs', roles: ['RH'], icon: 'book-open' },
     { label: 'Assistant', path: '/chatbot', roles: ['RH', 'EMPLOYEE', 'MANAGER'], icon: 'bot' },
   ];
 
@@ -70,6 +70,14 @@ export class ShellComponent implements OnInit {
 
   isDashboardRoute(): boolean {
     return this.router.url.startsWith('/dashboard');
+  }
+
+  isChatbotRoute(): boolean {
+    return this.router.url.startsWith('/chatbot');
+  }
+
+  isAiDocsRoute(): boolean {
+    return this.router.url.startsWith('/ai-docs');
   }
 
   isEmployeesRoute(): boolean {

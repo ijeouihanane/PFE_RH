@@ -27,279 +27,621 @@ interface MessageGroup {
   selector: 'app-chatbot',
   imports: [NgIf, NgFor, FormsModule, DatePipe, TitleCasePipe],
   template: `
-    <div class="chat-wrapper">
+    <section class="assistant-shell">
+      <header class="assistant-header">
+        <div>
+          <h1>Assistant RH</h1>
+          <p>
+            <span class="trust-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"></path>
+                <path d="m9 12 2 2 4-5"></path>
+              </svg>
+            </span>
+            Posez vos questions RH et obtenez des réponses basées sur des sources fiables validées par le service RH.
+          </p>
+        </div>
 
-      <!-- Header fixe en haut -->
-      <header class="chat-header">
-        <div class="chat-center-container header-content">
-          <div class="chat-title">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            Assistant RH
-          </div>
-          <div class="ai-status" [class.online]="aiAvailable" [class.offline]="!aiAvailable">
-            <span class="status-dot"></span>
-            {{ aiAvailable ? 'En ligne' : 'Hors ligne' }}
-          </div>
+        <div class="availability" [class.online]="aiAvailable" [class.offline]="!aiAvailable">
+          <span></span>
+          {{ aiAvailable ? 'EN LIGNE' : 'HORS LIGNE' }}
         </div>
       </header>
 
-      <!-- Zone de scroll des messages -->
-      <main class="chat-scroll-area" #messagesContainer>
-        <div class="chat-center-container">
-          
-          <!-- Message de Bienvenue (si vide) -->
-          <div class="welcome-msg" *ngIf="messageGroups.length === 0 && !loadingHistory">
-            <div class="welcome-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                <line x1="9" y1="9" x2="9.01" y2="9"/>
-                <line x1="15" y1="9" x2="15.01" y2="9"/>
+      <main class="conversation" #messagesContainer>
+        <div class="conversation-inner">
+          <section class="empty-state" *ngIf="messageGroups.length === 0 && !loadingHistory">
+            <div class="assistant-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 8V4H8"></path>
+                <rect width="16" height="12" x="4" y="8" rx="2"></rect>
+                <path d="M2 14h2"></path>
+                <path d="M20 14h2"></path>
+                <path d="M9 13v2"></path>
+                <path d="M15 13v2"></path>
+                <path d="M10 18h4"></path>
               </svg>
             </div>
-            <h3>Bonjour, {{ userName }} !</h3>
-            <p>Posez-moi vos questions sur le règlement interne, les congés,<br> ou tout autre document RH publié par l'entreprise.</p>
-          </div>
+            <h2>Bonjour, je suis votre assistant RH.</h2>
+            <p>Posez-moi une question sur vos droits, obligations ou procédures internes.</p>
 
-          <!-- Groupes de messages par date -->
+            <div class="suggestions">
+              <button
+                type="button"
+                *ngFor="let item of suggestions"
+                (click)="askSuggestion(item)"
+                [disabled]="loading || !aiAvailable"
+              >
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 3v4"></path>
+                    <path d="M12 17v4"></path>
+                    <path d="M3 12h4"></path>
+                    <path d="M17 12h4"></path>
+                    <path d="m7.8 7.8 2.4 2.4"></path>
+                    <path d="m13.8 13.8 2.4 2.4"></path>
+                    <path d="m16.2 7.8-2.4 2.4"></path>
+                    <path d="m10.2 13.8-2.4 2.4"></path>
+                  </svg>
+                </span>
+                {{ item }}
+              </button>
+            </div>
+          </section>
+
           <ng-container *ngFor="let group of messageGroups">
-            
-            <!-- Séparateur de Date (ex: "Aujourd'hui", "Hier") -->
             <div class="date-separator">
               <span>{{ group.dateLabel | titlecase }}</span>
             </div>
 
-            <!-- Bulles de messages -->
-            <div *ngFor="let msg of group.messages" class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'">
-              <div class="msg-bubble" [class.user-bubble]="msg.role === 'user'" [class.bot-bubble]="msg.role === 'assistant'">
-                
-                <div class="msg-content">{{ msg.content }}</div>
+            <div *ngFor="let msg of group.messages" class="message-row" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+              <div class="assistant-avatar" *ngIf="msg.role === 'assistant'" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M12 8V4H8"></path>
+                  <rect width="16" height="12" x="4" y="8" rx="2"></rect>
+                  <path d="M2 14h2"></path>
+                  <path d="M20 14h2"></path>
+                  <path d="M9 13v2"></path>
+                  <path d="M15 13v2"></path>
+                  <path d="M10 18h4"></path>
+                </svg>
+              </div>
 
-                <!-- Badge Source -->
-                <div class="source-badge" *ngIf="msg.answered !== false && msg.docSource">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
+              <div class="message-stack">
+                <div class="message-bubble" [class.user-bubble]="msg.role === 'user'" [class.assistant-bubble]="msg.role === 'assistant'">
+                  <div class="message-content">{{ msg.content }}</div>
+                </div>
+
+                <div class="source-pill" *ngIf="msg.role === 'assistant' && msg.answered !== false && msg.docSource">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <path d="M14 2v6h6"></path>
                   </svg>
-                  {{ msg.docSource }} <span *ngIf="msg.pageRange"> — {{ msg.pageRange }}</span><span *ngIf="!msg.pageRange && msg.pageNumber"> — Page {{ msg.pageNumber }}</span>
+                  Source : {{ msg.docSource }}
+                  <span *ngIf="msg.pageRange"> — {{ msg.pageRange }}</span>
+                  <span *ngIf="!msg.pageRange && msg.pageNumber"> — Page {{ msg.pageNumber }}</span>
                 </div>
 
-                <!-- Badge Non Trouvé -->
-                <div class="not-found-badge" *ngIf="msg.role === 'assistant' && msg.answered === false">
-                  ⚠ Information non disponible dans les documents RH
-                </div>
-
-                <!-- Heure DANS la bulle -->
-                <div class="msg-time">{{ msg.timestamp | date:'HH:mm' }}</div>
+                <div class="message-time">{{ msg.timestamp | date:'HH:mm' }}</div>
               </div>
             </div>
           </ng-container>
 
-          <!-- Loader de frappe (Typing indicator) -->
-          <div class="msg-row bot" *ngIf="loading">
-            <div class="msg-bubble bot-bubble typing-bubble">
-              <div class="typing-indicator">
-                <span></span><span></span><span></span>
-              </div>
+          <div class="message-row assistant" *ngIf="loading">
+            <div class="assistant-avatar" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 8V4H8"></path>
+                <rect width="16" height="12" x="4" y="8" rx="2"></rect>
+                <path d="M2 14h2"></path>
+                <path d="M20 14h2"></path>
+                <path d="M9 13v2"></path>
+                <path d="M15 13v2"></path>
+                <path d="M10 18h4"></path>
+              </svg>
+            </div>
+            <div class="typing">
+              <span></span><span></span><span></span>
             </div>
           </div>
-
         </div>
       </main>
 
-      <!-- Input fixe en bas -->
-      <footer class="chat-input-area">
-        <div class="chat-center-container">
-          <div class="offline-warning" *ngIf="!aiAvailable">
-            Le service d'Intelligence Artificielle est temporairement indisponible.
-          </div>
-          <div class="input-row">
-            <input
-              type="text"
-              [(ngModel)]="question"
-              (keydown.enter)="send()"
-              placeholder="Écrivez un message..."
-              [disabled]="loading || !aiAvailable"
-              class="chat-input"
-            />
-            <button class="send-btn" (click)="send()" [disabled]="loading || !question.trim() || !aiAvailable">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
-          </div>
-        </div>
+      <footer class="composer">
+        <input
+          type="text"
+          [(ngModel)]="question"
+          (keydown.enter)="send()"
+          placeholder="Poser une question sur les documents RH..."
+          [disabled]="loading || !aiAvailable"
+        />
+        <button type="button" (click)="send()" [disabled]="loading || !question.trim() || !aiAvailable" aria-label="Envoyer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path d="m22 2-7 20-4-9-9-4 20-7Z"></path>
+            <path d="M22 2 11 13"></path>
+          </svg>
+        </button>
       </footer>
-
-    </div>
+    </section>
   `,
   styles: [`
-    /* ─── Layout Global ─── */
-    .chat-wrapper {
+    :host {
+      display: block;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .assistant-shell {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background: #ffffff;
+      color: #020617;
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .assistant-header {
+      min-height: 78px;
       display: flex;
-      flex-direction: column;
-      height: calc(100vh - 36px); 
-      margin: -18px; 
-      background: #efeae2; /* Couleur de fond classique WhatsApp Web */
-      position: relative;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px 34px 15px;
+      border-bottom: 1px solid #dfe6ef;
+      background: #ffffff;
+      z-index: 2;
     }
 
-    /* Conteneur central (100% de la largeur avec du padding) */
-    .chat-center-container {
-      max-width: 100%;
-      margin: 0 auto;
+    .assistant-header h1 {
+      margin: 0 0 5px;
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 500;
+      letter-spacing: 0;
+      color: #020617;
+    }
+
+    .assistant-header p {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 400;
+    }
+
+    .trust-icon {
+      width: 14px;
+      height: 14px;
+      color: #2563eb;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    .trust-icon svg,
+    .availability svg,
+    .assistant-mark svg,
+    .suggestions svg,
+    .assistant-avatar svg,
+    .source-pill svg,
+    .composer svg {
       width: 100%;
-      padding: 0 32px;
-      box-sizing: border-box;
+      height: 100%;
     }
 
-    /* ─── Header ─── */
-    .chat-header {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid #e2e8f0;
-      padding: 14px 0;
-      z-index: 10;
+    .availability {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 30px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
-    .header-content {
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .chat-title {
-      font-weight: 700; font-size: 1.1em; color: #0f172a;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .ai-status {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 0.82em; font-weight: 600;
-      padding: 4px 12px; border-radius: 99px;
-    }
-    .ai-status.online { background: #f0fdf4; color: #16a34a; }
-    .ai-status.offline { background: #fef2f2; color: #dc2626; }
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; }
-    .online .status-dot { background: #16a34a; }
-    .offline .status-dot { background: #dc2626; }
 
-    /* ─── Scroll Area ─── */
-    .chat-scroll-area {
-      flex: 1;
+    .availability span {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      display: block;
+    }
+
+    .availability.online {
+      color: #059669;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+    }
+
+    .availability.online span {
+      background: #10b981;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.13);
+      animation: pulseOnline 1.8s ease-in-out infinite;
+    }
+
+    .availability.offline {
+      color: #dc2626;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .availability.offline span {
+      background: #ef4444;
+    }
+
+    @keyframes pulseOnline {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14); }
+      50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.06); }
+    }
+
+    .conversation {
+      min-height: 0;
       overflow-y: auto;
-      padding: 24px 0;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      background: #ffffff;
       scroll-behavior: smooth;
     }
-    .welcome-msg { text-align: center; padding: 60px 20px; color: #64748b; }
-    .welcome-icon { margin-bottom: 16px; }
-    .welcome-msg h3 { color: #0f172a; margin: 0 0 8px; font-size: 1.3em; }
 
-    /* ─── Séparateur de date ─── */
-    .date-separator {
-      display: flex; justify-content: center;
-      margin: 24px 0 16px;
-    }
-    .date-separator span {
-      background: #e2e8f0; color: #475569;
-      font-size: 0.75em; font-weight: 600;
-      padding: 5px 14px; border-radius: 99px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    .conversation::-webkit-scrollbar {
+      display: none;
     }
 
-    /* ─── Bulles de messages ─── */
-    .msg-row { display: flex; margin-bottom: 6px; }
-    .msg-row.user { justify-content: flex-end; }
-    .msg-row.bot { justify-content: flex-start; }
-
-    .msg-bubble {
+    .conversation-inner {
+      min-height: 100%;
+      padding: 26px 42px 36px;
       position: relative;
-      max-width: 70%; /* Largeur max type WhatsApp */
-      min-width: 80px; 
-      padding: 8px 14px 22px 14px; 
-      border-radius: 12px;
+    }
+
+    .empty-state {
+      min-height: calc(100vh - 232px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #475569;
+      transform: translateY(-12px);
+    }
+
+    .assistant-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #2563eb;
+      background: #f1f5f9;
+      border: 4px solid #e8eef7;
+      margin-bottom: 20px;
+    }
+
+    .assistant-mark svg {
+      width: 25px;
+      height: 25px;
+    }
+
+    .empty-state h2 {
+      margin: 0 0 9px;
+      color: #020617;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    .empty-state p {
+      margin: 0 0 26px;
+      color: #475569;
+      font-size: 13px;
       line-height: 1.5;
-      font-size: 0.95em;
-      box-shadow: 0 1px 1px rgba(0,0,0,0.1);
-    }
-    .user-bubble {
-      background: #d9fdd3; /* Vert WhatsApp clair */
-      color: #111b21;
-      border-bottom-right-radius: 0px;
-    }
-    .bot-bubble {
-      background: #ffffff; 
-      color: #111b21;
-      border-bottom-left-radius: 0px;
-    }
-    .msg-content { white-space: pre-wrap; }
-
-    /* L'heure incrustée */
-    .msg-time {
-      position: absolute;
-      bottom: 4px; right: 8px;
-      font-size: 0.7em; font-weight: 500;
-    }
-    .user-bubble .msg-time { color: #667781; }
-    .bot-bubble .msg-time { color: #667781; }
-
-    /* Badges IA */
-    .source-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      margin-top: 8px; margin-bottom: 4px; padding: 5px 10px;
-      background: #f0fdf4; color: #16a34a;
-      border-radius: 8px; font-size: 0.8em; font-weight: 600;
-      border: 1px solid #dcfce7;
-    }
-    .not-found-badge {
-      margin-top: 8px; margin-bottom: 4px; padding: 6px 12px;
-      background: #fff7ed; color: #d97706;
-      border-radius: 8px; font-size: 0.82em; font-weight: 600;
-      border: 1px solid #ffedd5;
+      font-weight: 400;
     }
 
-    /* Loader */
-    .typing-bubble { padding: 14px 18px !important; min-width: auto; }
-    .typing-indicator { display: flex; gap: 4px; align-items: center; }
-    .typing-indicator span {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #94a3b8; animation: blink 1.4s infinite both;
+    .suggestions {
+      width: min(672px, 100%);
+      display: grid;
+      gap: 9px;
     }
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
 
-    /* ─── Input Area ─── */
-    .chat-input-area {
-      background: #f0f2f5; /* Bandeau inférieur WhatsApp */
-      padding: 8px 0 10px 0; /* Encore plus fin */
-      z-index: 10;
-    }
-    .input-row { position: relative; display: flex; align-items: center; }
-    .chat-input {
-      flex: 1; border: none;
-      border-radius: 8px; 
-      padding: 10px 56px 10px 16px; /* Padding réduit pour une bande moins haute */
-      font-size: 0.95em;
-      outline: none; transition: all 0.2s;
+    .suggestions button {
+      width: 100%;
+      min-height: 45px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      border: 1px solid #dbe3ef;
       background: #ffffff;
+      color: #020617;
+      border-radius: 8px;
+      padding: 0 17px;
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.35;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+    }
+
+    .suggestions button span {
+      width: 17px;
+      height: 17px;
+      color: #64748b;
+      flex: 0 0 auto;
+    }
+
+    .suggestions button:hover:not(:disabled) {
+      border-color: #b9c8dc;
+      color: #1d4ed8;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    }
+
+    .suggestions button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .date-separator {
+      display: flex;
+      justify-content: center;
+      margin: 2px 0 20px;
+    }
+
+    .date-separator span {
+      min-height: 26px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid #dbe3ef;
+      background: #ffffff;
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 500;
+      letter-spacing: 0.35px;
+      text-transform: uppercase;
+    }
+
+    .message-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin: 0 0 20px;
+    }
+
+    .message-row.user {
+      justify-content: flex-end;
+      padding-left: 28%;
+    }
+
+    .message-row.assistant {
+      justify-content: flex-start;
+      padding-right: 18%;
+    }
+
+    .assistant-avatar {
+      width: 34px;
+      height: 34px;
+      margin-top: 1px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: #2563eb;
+      background: #edf4ff;
+      border: 1px solid #cfe0fb;
+    }
+
+    .assistant-avatar svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .message-stack {
+      max-width: 820px;
+      min-width: 0;
+    }
+
+    .message-row.user .message-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .message-bubble {
+      border-radius: 12px;
+      padding: 13px 16px;
+      line-height: 1.55;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0;
+      word-break: break-word;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .user-bubble {
+      background: #1557c9;
+      color: #ffffff;
+      border: 1px solid #1557c9;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(21, 87, 201, 0.18);
+    }
+
+    .assistant-bubble {
+      background: #ffffff;
+      color: #020617;
+      border: 1px solid #dbe3ef;
+      min-width: min(680px, 100%);
+    }
+
+    .message-content {
+      white-space: pre-wrap;
+    }
+
+    .source-pill {
+      width: fit-content;
+      max-width: 100%;
+      min-height: 30px;
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      border-radius: 7px;
+      border: 1px solid #b8cff9;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.25;
+    }
+
+    .source-pill svg {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+    }
+
+    .message-time {
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 400;
+    }
+
+    .typing {
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid #dbe3ef;
+      background: #ffffff;
+    }
+
+    .typing span {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #94a3b8;
+      animation: blink 1.3s infinite both;
+    }
+
+    .typing span:nth-child(2) { animation-delay: 0.16s; }
+    .typing span:nth-child(3) { animation-delay: 0.32s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.28; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-2px); }
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 42px;
+      gap: 9px;
+      align-items: center;
+      padding: 13px 40px 12px;
+      border-top: 1px solid #dfe6ef;
+      background: #ffffff;
+      z-index: 2;
+    }
+
+    .composer input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+      padding: 0 16px;
+      outline: none;
+      color: #0f172a;
+      background: #ffffff;
+      font-size: 13px;
+      font-weight: 400;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .composer input::placeholder {
+      color: #64748b;
+    }
+
+    .composer input:focus {
+      border-color: #93b4ee;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    .composer input:disabled {
+      background: #f8fafc;
+      cursor: not-allowed;
+    }
+
+    .composer button {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: #ffffff;
+      background: #2563eb;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+      transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+    }
+
+    .composer button svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .composer button:hover:not(:disabled) {
+      background: #1d4ed8;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.38);
+      transform: translateY(-1px);
+    }
+
+    .composer button:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 1px 4px rgba(37, 99, 235, 0.2);
+    }
+
+    .composer button:disabled {
+      background: #93b4f5;
       box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
     }
-    .chat-input:disabled { background: #e2e8f0; cursor: not-allowed; }
-    
-    .send-btn {
-      position: absolute; right: 8px;
-      width: 40px; height: 40px; flex-shrink: 0;
-      border: none; border-radius: 50%;
-      background: transparent; color: #54656f; /* Gris WhatsApp */
-      cursor: pointer; display: grid; place-items: center;
-      transition: color 0.2s;
-    }
-    .send-btn:hover:not(:disabled) { color: #111b21; }
-    .send-btn:disabled { color: #cbd5e1; cursor: not-allowed; }
-    
-    .offline-warning {
-      background: #fff7ed; color: #d97706;
-      padding: 8px 12px; border-radius: 8px; font-size: 0.85em; font-weight: 600;
-      margin-bottom: 12px; text-align: center;
+
+    @media (max-width: 900px) {
+      .assistant-header,
+      .composer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .conversation-inner {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .message-row.user,
+      .message-row.assistant {
+        padding-left: 0;
+        padding-right: 0;
+      }
+
+      .assistant-bubble {
+        min-width: 0;
+      }
     }
   `],
 })
@@ -314,6 +656,11 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
   loadingHistory = true;
   aiAvailable = false;
   userName = '';
+  readonly suggestions = [
+    'Quelles sont les conditions pour devenir délégué du personnel ?',
+    'Quels sont les jours fériés payés ?',
+    'Quelles sont les obligations générales d’un employé ?',
+  ];
 
   private readonly API = `${environment.apiUrl}/api/documents/ai`;
   private shouldScroll = false;
@@ -347,8 +694,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     this.loadingHistory = true;
     this.http.get<ChatLogEntry[]>(`${this.API}/chat/history`).subscribe({
       next: logs => {
-        // Le backend renvoie du plus récent au plus ancien (DESC). 
-        // On inverse pour l'affichage continu de haut en bas.
         const chronological = logs.reverse();
 
         const rawMsgs: ChatMessage[] = [];
@@ -372,8 +717,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
         this.allMessages = rawMsgs;
         this.rebuildGroups();
         this.loadingHistory = false;
-
-        // Scroll tout en bas au chargement initial
         setTimeout(() => this.scrollToBottom(), 100);
       },
       error: () => {
@@ -383,12 +726,18 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     });
   }
 
+  askSuggestion(value: string): void {
+    if (this.loading || !this.aiAvailable) return;
+    this.question = value;
+    this.send();
+  }
+
   private rebuildGroups(): void {
     const groupsMap = new Map<string, ChatMessage[]>();
 
     for (const msg of this.allMessages) {
       const d = new Date(msg.timestamp);
-      d.setHours(0, 0, 0, 0); // On met à minuit pour grouper par jour
+      d.setHours(0, 0, 0, 0);
       const key = d.getTime().toString();
 
       if (!groupsMap.has(key)) {
@@ -397,7 +746,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
       groupsMap.get(key)!.push(msg);
     }
 
-    // Trier les jours chronologiquement
     const sortedKeys = Array.from(groupsMap.keys()).sort((a, b) => parseInt(a) - parseInt(b));
 
     this.messageGroups = sortedKeys.map(key => {
@@ -421,7 +769,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     if (targetTime === today.getTime()) return "Aujourd'hui";
     if (targetTime === yesterday.getTime()) return "Hier";
 
-    // Pour les autres jours : ex "Jeudi 12 Mai"
     return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
@@ -429,7 +776,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     const q = this.question?.trim();
     if (!q || this.loading) return;
 
-    // Ajouter le message utilisateur localement
     const userMsg: ChatMessage = { role: 'user', content: q, timestamp: new Date() };
     this.allMessages.push(userMsg);
     this.rebuildGroups();
@@ -438,7 +784,6 @@ export class ChatbotComponent implements OnInit, AfterViewChecked {
     this.loading = true;
     this.shouldScroll = true;
 
-    // Appel API
     this.http.post<AiChatResponse>(`${this.API}/chat`, { question: q }).subscribe({
       next: resp => {
         this.allMessages.push({
