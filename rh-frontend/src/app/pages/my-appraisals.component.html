@@ -159,6 +159,10 @@
               {{ statusBadgeLabel(item.statut) }}
             </span>
           </div>
+
+          <button type="button" class="close-icon-btn" (click)="closeDetail()" aria-label="Fermer l'évaluation détaillée" title="Fermer">
+            <svg lucideX [size]="20"></svg>
+          </button>
         </header>
 
         <div class="detail-body">

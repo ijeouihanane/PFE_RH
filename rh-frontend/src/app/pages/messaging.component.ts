@@ -7,7 +7,6 @@ import {
   LucideDownload,
   LucideFile,
   LucideInbox,
-  LucideMessageSquare,
   LucideMoreHorizontal,
   LucidePaperclip,
   LucidePlus,
@@ -39,7 +38,6 @@ type EmojiCategory = 'RECENT' | 'SMILEYS' | 'WORK' | 'OBJECTS';
     LucideDownload,
     LucideFile,
     LucideInbox,
-    LucideMessageSquare,
     LucideMoreHorizontal,
     LucidePaperclip,
     LucidePlus,
@@ -131,7 +129,8 @@ export class MessagingComponent implements OnInit, OnDestroy {
   }
 
   get unreadNotifications(): number {
-    return this.notifications.filter((n) => !n.lu).length;
+    // Basé sur les conversations avec messages non-lus (fiable, indépendant du backend lu-status)
+    return this.conversations.filter((c) => c.unreadCount > 0).length;
   }
 
   get activeEmojis(): string[] {
@@ -177,9 +176,8 @@ export class MessagingComponent implements OnInit, OnDestroy {
         });
         this.applyConversationFilters();
         this.loading = false;
-        if (!this.selected && items.length) {
-          this.selectConversation(items[0]);
-        }
+        // Regénérer les notifications depuis les conversations fraîchement chargées
+        this.refreshNotificationsFromConversations();
       },
       error: () => {
         this.loading = false;
@@ -188,14 +186,33 @@ export class MessagingComponent implements OnInit, OnDestroy {
   }
 
   loadNotifications(): void {
-    this.messaging.notifications().subscribe((items) => {
-      const remote = items.filter((n) => n.type === 'CHAT');
-      const remoteMessageIds = new Set(remote.map((n) => n.chatMessageId).filter((id) => id != null));
-      const pendingLocal = this.notifications.filter((n) => n.id < 0 && !remoteMessageIds.has(n.chatMessageId || 0));
-      this.notifications = [...pendingLocal, ...remote]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 8);
-    });
+    // Synthétise les notifications depuis les conversations non-lues (source fiable)
+    this.refreshNotificationsFromConversations();
+  }
+
+  private refreshNotificationsFromConversations(): void {
+    // Crée une notification par conversation avec des messages non-lus
+    const fromConversations: NotificationItem[] = this.conversations
+      .filter((c) => c.unreadCount > 0)
+      .map((c) => ({
+        id: -(c.id),
+        userId: this.auth.user?.id || 0,
+        titre: 'Nouveau message',
+        message: `${c.contactName} : ${c.lastMessagePreview || 'Message reçu'}`,
+        type: 'CHAT' as const,
+        lu: false,
+        createdAt: c.lastMessageAt || new Date().toISOString(),
+        chatConversationId: c.id,
+        chatMessageId: undefined,
+      }));
+
+    // Garder les notifs locales temps-réel pour conversations pas encore rafraîchies
+    const convIds = new Set(fromConversations.map((n) => n.chatConversationId));
+    const pendingRealtime = this.notifications.filter((n) => n.id < 0 && !convIds.has(n.chatConversationId));
+
+    this.notifications = [...fromConversations, ...pendingRealtime]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 8);
   }
 
   openNotification(notification: NotificationItem): void {
@@ -329,10 +346,10 @@ export class MessagingComponent implements OnInit, OnDestroy {
           this.markRead(message.conversationId);
         }
       }
-      if (!message.mine) {
-        this.addRealtimeNotification(message);
+      if (!message.mine && this.selected?.id !== message.conversationId) {
+        // Bump immédiat pour le badge et la notif cloche
         this.bumpUnread(message.conversationId);
-        setTimeout(() => this.loadNotifications(), 700);
+        this.refreshNotificationsFromConversations();
       }
       this.loadConversations();
     }
@@ -396,22 +413,6 @@ export class MessagingComponent implements OnInit, OnDestroy {
     setTimeout(() => this.scrollBottom(), 0);
   }
 
-  private addRealtimeNotification(message: ChatMessage): void {
-    const conversation = this.conversations.find((c) => c.id === message.conversationId);
-    const name = conversation?.contactName || 'Nouveau message';
-    const localNotification: NotificationItem = {
-      id: -message.id,
-      userId: this.auth.user?.id || 0,
-      titre: `Nouveau message de ${name}`,
-      message: message.messageType === 'FILE' ? 'Fichier reçu' : message.content,
-      type: 'CHAT',
-      lu: false,
-      createdAt: message.createdAt,
-      chatConversationId: message.conversationId,
-      chatMessageId: message.id,
-    };
-    this.notifications = [localNotification, ...this.notifications.filter((n) => n.id !== localNotification.id)].slice(0, 8);
-  }
 
   private bumpUnread(conversationId: number): void {
     if (this.selected?.id === conversationId) {

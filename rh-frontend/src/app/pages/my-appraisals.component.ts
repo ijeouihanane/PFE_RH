@@ -16,6 +16,7 @@ import {
   LucideSearch,
   LucideShieldCheck,
   LucideUserRound,
+  LucideX,
 } from '@lucide/angular';
 import { Appraisal, AppraisalStatus } from './appraisal.model';
 import { AppraisalService } from './appraisal.service';
@@ -42,6 +43,7 @@ type ToastKind = 'success' | 'error';
     LucideSearch,
     LucideShieldCheck,
     LucideUserRound,
+    LucideX,
   ],
   templateUrl: './my-appraisals.component.html',
   styleUrl: './my-appraisals.component.scss',

@@ -35,7 +35,7 @@
   </aside>
 
   <div class="main">
-    <div class="floating-notif" *ngIf="auth.user && !isDashboardRoute() && !isChatbotRoute()" [class.employees-notif]="isEmployeesRoute()" [class.accounts-notif]="isAccountsRoute()">
+    <div class="floating-notif" *ngIf="auth.user && !isDashboardRoute() && !isChatbotRoute() && !isMessagingRoute() && !isAppraisalsRoute()" [class.employees-notif]="isEmployeesRoute()" [class.accounts-notif]="isAccountsRoute()">
       <div class="notification-anchor">
         <button class="notification-btn" type="button" (click)="toggleNotifications()">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

@@ -103,10 +103,10 @@
   justify-content: space-between;
 }
 
-.pane-head strong {
+.pane-head span {
   color: #020617;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .new-btn,
@@ -212,12 +212,14 @@
 
 .new-conversation select {
   height: 34px;
+  width: 100%;
   min-width: 0;
   border: 1px solid #dbe3ef;
   border-radius: 7px;
   background: #fff;
   color: #0f172a;
   font-size: 12px;
+  padding: 0 8px;
   outline: 0;
 }
 
@@ -553,7 +555,9 @@
 
 .send-btn {
   height: 36px;
-  padding: 0 16px;
+  width: 36px;
+  padding: 0;
+  flex: 0 0 36px;
 }
 
 .send-btn:disabled {

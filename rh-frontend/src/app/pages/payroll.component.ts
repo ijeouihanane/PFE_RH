@@ -40,7 +40,7 @@ export class PayrollComponent implements OnInit, OnDestroy {
 
   // Onglets : 0=Traitement mensuel, 1=Générer bulletin, 2=Données de paie, 3=Paramètres, 4=Historique
   readonly tabs = ['Traitement mensuel', 'Générer bulletin', 'Données de paie', 'Paramètres', 'Historique'];
-  activeTab = 1; // Par défaut : Générer bulletin
+  activeTab = 0; // Par défaut : Traitement mensuel
 
   employees: any[] = [];
 
@@ -63,6 +63,13 @@ export class PayrollComponent implements OnInit, OnDestroy {
 
   monthLabel(mois: number): string {
     return this.monthOptions.find(m => m.value === mois)?.label ?? '';
+  }
+
+  setActiveTab(index: number): void {
+    this.activeTab = index;
+    if (index === 4 && this.historyList.length === 0 && !this.historyLoading) {
+      this.loadHistory();
+    }
   }
 
   // --- Simulation (onglet 1 : Générer bulletin) ---
@@ -99,6 +106,9 @@ export class PayrollComponent implements OnInit, OnDestroy {
 
   // --- Lot 3 : Historique ---
   historyEmployeeId = 0;
+  historyMois: number = new Date().getMonth() + 1;
+  historyAnnee: number = new Date().getFullYear();
+  historySearch = '';
   historyList: any[] = [];
   historyLoading = false;
   historyError: string | null = null;
@@ -140,6 +150,21 @@ export class PayrollComponent implements OnInit, OnDestroy {
   seniorityError: string | null = null;
   senioritySuccess: string | null = null;
 
+  // ===== Toast notifications =====
+  toast: { message: string; sub?: string; type: 'success' | 'error'; link?: string } | null = null;
+  private toastTimer: any = null;
+
+  showToast(message: string, type: 'success' | 'error' = 'success', sub?: string, link?: string): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toast = { message, type, sub, link };
+    this.toastTimer = setTimeout(() => { this.toast = null; }, 4000);
+  }
+
+  dismissToast(): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toast = null;
+  }
+
   constructor(
     private readonly http: HttpClient,
     private readonly fb: FormBuilder,
@@ -148,6 +173,8 @@ export class PayrollComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.http.get<any[]>(`${environment.apiUrl}/api/users`).subscribe((rows) => {
       this.employees = rows.filter((e: any) => e.actif && (e.role === 'EMPLOYEE' || e.role === 'MANAGER'));
+      // Chargement automatique du tableau du mois courant dès l'ouverture
+      this.prepareBatch();
     });
     this.loadParameters();
     this.loadTaxBrackets();
@@ -309,7 +336,7 @@ export class PayrollComponent implements OnInit, OnDestroy {
       active: true,
     }).subscribe({
       next: () => {
-        this.profileSuccess = 'Profil paie enregistré avec succès.';
+        this.showToast('Profil paie enregistré', 'success', 'Les données de paie ont été sauvegardées.');
         this.profileNotFound = false;
       },
       error: (e) => {
@@ -333,7 +360,7 @@ export class PayrollComponent implements OnInit, OnDestroy {
     this.http.put<any[]>(`${environment.apiUrl}/api/payroll/parameters`, this.parameters).subscribe({
       next: (p) => {
         this.parameters = p;
-        this.paramSuccess = 'Paramètres enregistrés.';
+        this.showToast('Paramètres enregistrés', 'success', 'Les taux et plafonds ont été mis à jour.');
       },
       error: (e) => this.paramError = e?.error?.error ?? 'Erreur de sauvegarde.',
     });
@@ -352,7 +379,7 @@ export class PayrollComponent implements OnInit, OnDestroy {
     this.http.put<any[]>(`${environment.apiUrl}/api/payroll/tax-brackets`, this.taxBrackets).subscribe({
       next: (b) => {
         this.taxBrackets = b;
-        this.bracketSuccess = 'Tranches IR enregistrées.';
+        this.showToast('Tranches IR enregistrées', 'success', 'Le barème IR a été mis à jour.');
       },
       error: (e) => this.bracketError = e?.error?.error ?? 'Erreur de sauvegarde.',
     });
@@ -371,7 +398,7 @@ export class PayrollComponent implements OnInit, OnDestroy {
     this.http.put<any[]>(`${environment.apiUrl}/api/payroll/seniority-rules`, this.seniorityRules).subscribe({
       next: (r) => {
         this.seniorityRules = r;
-        this.senioritySuccess = 'Règles d\'ancienneté enregistrées.';
+        this.showToast('Règles d\'ancienneté enregistrées', 'success', 'Le barème d\'ancienneté a été mis à jour.');
       },
       error: (e) => this.seniorityError = e?.error?.error ?? 'Erreur de sauvegarde.',
     });
@@ -544,7 +571,8 @@ export class PayrollComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.isSaving = false;
         this.savedDraftId = res.id;
-        if (this.historyEmployeeId === req.employeeId) {
+        this.showToast('Bulletin sauvegardé', 'success', 'Le brouillon a bien été enregistré.', 'draft');
+        if (this.historyMois === req.mois && this.historyAnnee === req.annee) {
           this.loadHistory();
         }
       },
@@ -558,14 +586,10 @@ export class PayrollComponent implements OnInit, OnDestroy {
   // ===== Lot 3 : Historique =====
 
   loadHistory(): void {
-    if (this.historyEmployeeId <= 0) {
-      this.historyList = [];
-      return;
-    }
     this.historyLoading = true;
     this.historyError = null;
 
-    this.http.get<any[]>(`${environment.apiUrl}/api/payroll/employees/${this.historyEmployeeId}/payslips`).subscribe({
+    this.http.get<any[]>(`${environment.apiUrl}/api/payroll/payslips/history?mois=${this.historyMois}&annee=${this.historyAnnee}`).subscribe({
       next: (list) => {
         this.historyList = list;
         this.historyLoading = false;
@@ -575,6 +599,19 @@ export class PayrollComponent implements OnInit, OnDestroy {
         this.historyLoading = false;
         this.historyList = [];
       }
+    });
+  }
+
+  get filteredHistoryList(): any[] {
+    const q = this.historySearch.trim().toLowerCase();
+    if (!q) {
+      return this.historyList;
+    }
+    return this.historyList.filter(h => {
+      const fullName = `${h.employeeFirstName || ''} ${h.employeeLastName || ''}`.toLowerCase();
+      const matricule = `${h.employeeMatricule || ''}`.toLowerCase();
+      const status = `${h.status || ''}`.toLowerCase();
+      return fullName.includes(q) || matricule.includes(q) || status.includes(q);
     });
   }
 

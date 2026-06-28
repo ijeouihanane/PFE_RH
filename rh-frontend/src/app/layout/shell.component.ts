@@ -80,6 +80,10 @@ export class ShellComponent implements OnInit {
     return this.router.url.startsWith('/ai-docs');
   }
 
+  isAppraisalsRoute(): boolean {
+    return this.router.url === '/appraisals';
+  }
+
   isEmployeesRoute(): boolean {
     return this.router.url.startsWith('/employees');
   }

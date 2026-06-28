@@ -1,7 +1,6 @@
 <div class="messaging-page">
   <header class="messaging-topbar">
     <div class="page-title">
-      <svg lucideMessageSquare [size]="20"></svg>
       <strong>{{ title }}</strong>
       <span>· {{ subtitle }}</span>
     </div>
@@ -42,7 +41,7 @@
   <main class="messaging-shell">
     <aside class="conversation-pane">
       <div class="pane-head">
-        <strong>Conversations</strong>
+        <span>Conversations</span>
         <button *ngIf="isRh" class="new-btn" type="button" (click)="newConversationOpen = !newConversationOpen">
           <svg lucidePlus [size]="16"></svg>
           Nouvelle
@@ -202,9 +201,8 @@
         </label>
         <div class="selected-file" *ngIf="file">{{ file.name }}</div>
         <input [(ngModel)]="draft" (keyup.enter)="send()" placeholder="Écrire un message..." />
-        <button class="send-btn" type="button" (click)="send()" [disabled]="!draft.trim() && !file">
+        <button class="send-btn" type="button" (click)="send()" [disabled]="!draft.trim() && !file" aria-label="Envoyer">
           <svg lucideSend [size]="17"></svg>
-          Envoyer
         </button>
       </footer>
     </section>
@@ -213,7 +211,7 @@
 
 <ng-template #noConversation>
   <section class="chat-pane empty-chat">
-    <svg lucideMessageSquare [size]="42"></svg>
+    <svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:#cbd5e1"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
     <strong>Aucune conversation sélectionnée</strong>
     <span>Sélectionnez une conversation pour commencer.</span>
   </section>

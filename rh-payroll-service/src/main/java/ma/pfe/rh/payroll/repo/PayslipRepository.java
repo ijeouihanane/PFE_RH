@@ -11,6 +11,8 @@ public interface PayslipRepository extends JpaRepository<Payslip, Long> {
 
     List<Payslip> findByEmployeeIdOrderByAnneeDescMoisDesc(Long employeeId);
 
+    List<Payslip> findByMoisAndAnneeOrderByUpdatedAtDesc(int mois, int annee);
+
     List<Payslip> findByEmployeeIdAndStatusNotOrderByAnneeDescMoisDesc(Long employeeId, PayslipStatus status);
 
     List<Payslip> findByEmployeeIdAndStatusOrderByAnneeDescMoisDesc(Long employeeId, PayslipStatus status);

@@ -61,6 +61,16 @@ public class PayrollController {
 
     // ---- Ancien upload PDF (inchangé) ----
 
+    @GetMapping(value = "/payslips/history", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<PayslipResponse> payslipsHistoryByPeriod(
+            HttpServletRequest http,
+            @RequestParam int mois,
+            @RequestParam int annee
+    ) {
+        requireRh(http);
+        return payrollService.payslipsForRhPeriod(mois, annee);
+    }
+
     @PostMapping(value = "/employees/{employeeId}/payslips", consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public PayslipResponse uploadPayslip(
             HttpServletRequest http,

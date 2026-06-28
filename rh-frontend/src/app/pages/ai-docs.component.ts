@@ -200,7 +200,7 @@ import { AiDocItem, AiStatus } from '../core/chat.model';
     .knowledge-header h1 {
       margin: 0 0 5px;
       color: #020617;
-      font-size: 22px;
+      font-size: 18px;
       line-height: 1.2;
       font-weight: 500;
       letter-spacing: 0;

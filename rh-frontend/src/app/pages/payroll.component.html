@@ -1,90 +1,141 @@
 <div class="payroll-container">
 
-  <!-- Onglets : 0=Traitement mensuel, 1=Générer bulletin, 2=Données de paie, 3=Paramètres, 4=Historique -->
+  <!-- Toast notification -->
+  <div class="payroll-toast" *ngIf="toast" [class.toast-success]="toast.type === 'success'"
+    [class.toast-error]="toast.type === 'error'" (click)="dismissToast()">
+    <div class="toast-icon">
+      <svg *ngIf="toast.type === 'success'" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+        viewBox="0 0 24 24">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      <svg *ngIf="toast.type === 'error'" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+        viewBox="0 0 24 24">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </div>
+    <div class="toast-body">
+      <span class="toast-title">{{ toast.message }}</span>
+      <span class="toast-sub" *ngIf="toast.sub">{{ toast.sub }}</span>
+    </div>
+    <button class="toast-close" (click)="dismissToast()">&times;</button>
+  </div>
+
+  <!-- Onglets -->
   <div class="tabs">
-    <button *ngFor="let t of tabs; let i = index"
-            class="tab" [class.active]="activeTab === i"
-            (click)="activeTab = i">{{ t }}</button>
+    <button *ngFor="let t of tabs; let i = index" class="tab" [class.active]="activeTab === i"
+      (click)="setActiveTab(i)">{{ t }}</button>
   </div>
 
   <!-- ===== Onglet 1 : Générer bulletin ===== -->
   <div *ngIf="activeTab === 1" class="tab-content split-view">
     <div class="split-left">
-      <div class="section-card">
-        <h3>Configuration du bulletin</h3>
+      <div class="gen-panel">
+        <div class="gen-panel-header">
+          <div class="gen-panel-icon">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h3>Générer un bulletin</h3>
+            <span class="gen-panel-subtitle">Configuration de la fiche de paie</span>
+          </div>
+        </div>
 
         <form [formGroup]="simForm">
-          <div class="field">
-            <label>Employé</label>
-            <select formControlName="employeeId" (change)="onSimEmployeeChange()">
-              <option [value]="0" disabled>-- Choisir un employé --</option>
-              <option *ngFor="let e of employees" [value]="e.id">
-                {{ e.prenom }} {{ e.nom }} — {{ e.matricule || 'N/A' }}
-              </option>
-            </select>
+          <div class="gen-section">
+            <div class="gen-section-label">Employé</div>
+            <div class="field">
+              <select formControlName="employeeId" (change)="onSimEmployeeChange()">
+                <option [value]="0" disabled>-- Choisir un employé --</option>
+                <option *ngFor="let e of employees" [value]="e.id">
+                  {{ e.prenom }} {{ e.nom }} — {{ e.matricule || 'N/A' }}
+                </option>
+              </select>
+            </div>
           </div>
 
           <div class="error" *ngIf="simError">{{ simError }}</div>
 
           <div *ngIf="simProfileLoaded">
-            <div class="form-grid">
-              <div class="field">
-                <label>Mois</label>
-                <input type="number" formControlName="mois" min="1" max="12" [attr.readonly]="isValidated || null" />
-              </div>
-              <div class="field">
-                <label>Année</label>
-                <input type="number" formControlName="annee" min="2000" max="2100" [attr.readonly]="isValidated || null" />
-              </div>
-            </div>
-
-            <div class="form-grid read-only-group">
-              <div class="field">
-                <label>Salaire de base (fixé dans profil)</label>
-                <input type="text" [value]="simProfileBaseSalary | number:'1.2-2'" disabled />
-              </div>
-              <div class="field">
-                <label>Prime fixe (fixée dans profil)</label>
-                <input type="text" [value]="simProfileFixedBonus | number:'1.2-2'" disabled />
+            <div class="gen-section">
+              <div class="gen-section-label">Période</div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Mois</label>
+                  <input type="number" formControlName="mois" min="1" max="12" [attr.readonly]="isValidated || null" />
+                </div>
+                <div class="field">
+                  <label>Année</label>
+                  <input type="number" formControlName="annee" min="2000" max="2100"
+                    [attr.readonly]="isValidated || null" />
+                </div>
               </div>
             </div>
 
-            <h4 class="mt-16">Variables du mois</h4>
-            <div class="form-grid">
-              <div class="field">
-                <label>Prime transport</label>
-                <input type="number" formControlName="primeTransport" step="0.01" min="0" [attr.readonly]="isValidated || null" />
+            <div class="gen-section">
+              <div class="gen-section-label">Données du profil <span class="gen-badge-readonly">Lecture seule</span>
               </div>
-              <div class="field">
-                <label>Prime panier</label>
-                <input type="number" formControlName="primePanier" step="0.01" min="0" [attr.readonly]="isValidated || null" />
-              </div>
-              <div class="field">
-                <label>Bonus</label>
-                <input type="number" formControlName="bonus" step="0.01" min="0" [attr.readonly]="isValidated || null" />
-              </div>
-              <div class="field">
-                <label>Indemnité divers</label>
-                <input type="number" formControlName="indemnite" step="0.01" min="0" [attr.readonly]="isValidated || null" />
+              <div class="form-grid read-only-group">
+                <div class="field">
+                  <label>Salaire de base (DH)</label>
+                  <input type="text" [value]="simProfileBaseSalary | number:'1.2-2'" disabled />
+                </div>
+                <div class="field">
+                  <label>Prime fixe (DH)</label>
+                  <input type="text" [value]="simProfileFixedBonus | number:'1.2-2'" disabled />
+                </div>
               </div>
             </div>
 
-            <!-- Retenue spécifique (Tâche 1) -->
-            <h4 class="mt-16">Retenue spécifique</h4>
-            <div class="form-grid">
-              <div class="field">
-                <label>Montant retenue</label>
-                <input type="number" formControlName="retenueSpecifique" step="0.01" min="0"
-                       [attr.readonly]="isValidated || null" />
-              </div>
-              <div class="field">
-                <label>Motif de retenue</label>
-                <input type="text" formControlName="motifRetenue"
-                       [attr.readonly]="isValidated || null"
-                       placeholder="Ex : Avance sur salaire" />
+            <div class="gen-section">
+              <div class="gen-section-label">Variables du mois</div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Prime transport</label>
+                  <input type="number" formControlName="primeTransport" step="0.01" min="0"
+                    [attr.readonly]="isValidated || null" />
+                </div>
+                <div class="field">
+                  <label>Prime panier</label>
+                  <input type="number" formControlName="primePanier" step="0.01" min="0"
+                    [attr.readonly]="isValidated || null" />
+                </div>
+                <div class="field">
+                  <label>Bonus</label>
+                  <input type="number" formControlName="bonus" step="0.01" min="0"
+                    [attr.readonly]="isValidated || null" />
+                </div>
+                <div class="field">
+                  <label>Indemnité divers</label>
+                  <input type="number" formControlName="indemnite" step="0.01" min="0"
+                    [attr.readonly]="isValidated || null" />
+                </div>
               </div>
             </div>
-            <div class="error" *ngIf="retenueMotifError">{{ retenueMotifError }}</div>
+
+            <!-- Retenue spécifique -->
+            <div class="gen-section">
+              <div class="gen-section-label">Retenue spécifique</div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Montant retenue</label>
+                  <input type="number" formControlName="retenueSpecifique" step="0.01" min="0"
+                    [attr.readonly]="isValidated || null" />
+                </div>
+                <div class="field">
+                  <label>Motif de retenue</label>
+                  <input type="text" formControlName="motifRetenue" [attr.readonly]="isValidated || null"
+                    placeholder="Ex : Avance " />
+                </div>
+              </div>
+              <div class="error" *ngIf="retenueMotifError">{{ retenueMotifError }}</div>
+            </div>
           </div>
         </form>
       </div>
@@ -153,52 +204,82 @@
         </div>
 
         <div class="ps-net-pay">
-          <span>Net à payer</span>
-          <span class="amount">{{ simResult.netPay | number:'1.2-2' }} DH</span>
+          <div class="ps-net-label">Net à payer</div>
+          <div class="ps-net-amount">{{ simResult.netPay | number:'1.2-2' }} <span class="ps-net-currency">DH</span>
+          </div>
         </div>
 
         <!-- Actions -->
         <div class="ps-actions">
-          <div *ngIf="isSent" class="sent-status">
-            <span class="badge-sent">Envoyé</span>
+          <!-- Statut badge affiché sous le bulletin -->
+          <div class="ps-status-row">
+            <span class="badge-sent" *ngIf="isSent">Envoyé</span>
+            <span class="badge-validated" *ngIf="isValidated && !isSent">Validé</span>
           </div>
-          <div *ngIf="isValidated && !isSent" class="validated-status">
-            <span class="badge-validated">Validé</span>
-          </div>
-          <div class="draft-status" *ngIf="savedDraftId && !isValidated && !isSent">
-            <span class="badge-draft">Brouillon</span>
-            <span class="draft-msg">Bulletin sauvegardé.</span>
-          </div>
+
 
           <div class="error" *ngIf="saveError">{{ saveError }}</div>
           <div class="error" *ngIf="pdfError">{{ pdfError }}</div>
           <div class="error" *ngIf="sendError">{{ sendError }}</div>
 
           <div class="ps-btn-row">
-            <button class="btn btn-save"
-                    (click)="saveDraft()"
-                    [disabled]="isSaving || isPdfGenerating || isValidated || isSent"
-                    [class.btn-disabled]="isValidated || isSent">
+            <button class="btn btn-secondary-action" (click)="saveDraft()"
+              [disabled]="isSaving || isPdfGenerating || isValidated || isSent"
+              [class.btn-disabled]="isValidated || isSent">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
               {{ isSaving ? 'Sauvegarde...' : 'Sauvegarder' }}
             </button>
-            <button class="btn btn-pdf"
-                    (click)="downloadPdf()"
-                    [disabled]="isSaving || isPdfGenerating || !simResult">
+            <button class="btn btn-primary-action" (click)="downloadPdf()"
+              [disabled]="isSaving || isPdfGenerating || !simResult">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
               {{ isPdfGenerating ? 'Génération PDF...' : 'Télécharger PDF' }}
             </button>
-            <button class="btn btn-send"
-                    *ngIf="isValidated && validatedPdfUrl && !isSent"
-                    (click)="sendPayslip()"
-                    [disabled]="isSending">
+            <button class="btn btn-send-action" *ngIf="isValidated && validatedPdfUrl && !isSent"
+              (click)="sendPayslip()" [disabled]="isSending">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
               {{ isSending ? 'Envoi...' : 'Envoyer' }}
             </button>
           </div>
         </div>
       </div>
 
-      <div class="placeholder-card" *ngIf="!simResult && !isSimulating">
-        <h3>Aperçu du bulletin</h3>
-        <p>Sélectionnez un employé pour voir la simulation.</p>
+      <!-- Etat vide premium -->
+      <div class="preview-empty" *ngIf="!simResult && !isSimulating">
+        <div class="preview-empty-icon">
+          <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke-width="1.2" stroke="#2563eb">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+        </div>
+        <h4>Aperçu du bulletin de paie</h4>
+        <p>Sélectionnez un employé dans le formulaire et renseignez la période pour générer une simulation.</p>
+        <div class="preview-empty-steps">
+          <div class="preview-step">
+            <span class="preview-step-num">1</span>
+            <span>Choisir un employé</span>
+          </div>
+          <div class="preview-step-arrow">→</div>
+          <div class="preview-step">
+            <span class="preview-step-num">2</span>
+            <span>Définir la période</span>
+          </div>
+          <div class="preview-step-arrow">→</div>
+          <div class="preview-step">
+            <span class="preview-step-num">3</span>
+            <span>Renseigner les variables</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -269,7 +350,7 @@
     <div class="section-card">
       <h3>Tranches IR (Impôt sur le Revenu)</h3>
       <p class="muted">Barème annuel simplifié de l'IR.</p>
-      <table *ngIf="taxBrackets.length > 0" class="data-table">
+      <table *ngIf="taxBrackets.length > 0" class="data-table params-table">
         <thead>
           <tr>
             <th>Revenu annuel min (DH)</th>
@@ -289,14 +370,15 @@
       </table>
       <div class="error" *ngIf="bracketError">{{ bracketError }}</div>
       <div class="success" *ngIf="bracketSuccess">{{ bracketSuccess }}</div>
-      <button class="btn btn-primary" (click)="saveTaxBrackets()" style="margin-top: 12px;">Enregistrer les tranches</button>
+      <button class="btn btn-primary" (click)="saveTaxBrackets()" style="margin-top: 12px;">Enregistrer les
+        tranches</button>
     </div>
 
     <!-- Règles ancienneté -->
     <div class="section-card">
       <h3>Règles d'ancienneté</h3>
       <p class="muted">Prime d'ancienneté selon les années de service.</p>
-      <table *ngIf="seniorityRules.length > 0" class="data-table">
+      <table *ngIf="seniorityRules.length > 0" class="data-table params-table">
         <thead>
           <tr>
             <th>Années min</th>
@@ -314,32 +396,38 @@
       </table>
       <div class="error" *ngIf="seniorityError">{{ seniorityError }}</div>
       <div class="success" *ngIf="senioritySuccess">{{ senioritySuccess }}</div>
-      <button class="btn btn-primary" (click)="saveSeniorityRules()" style="margin-top: 12px;">Enregistrer les règles</button>
+      <button class="btn btn-primary" (click)="saveSeniorityRules()" style="margin-top: 12px;">Enregistrer les
+        règles</button>
     </div>
   </div>
 
   <!-- ===== Onglet 4 : Historique ===== -->
   <div *ngIf="activeTab === 4" class="tab-content">
-    <div class="section-card">
-      <h3>Historique des bulletins</h3>
-      <div class="field" style="max-width:360px">
-        <label>Employé</label>
-        <select [(ngModel)]="historyEmployeeId" (change)="loadHistory()">
-          <option [value]="0">-- Choisir un employé --</option>
-          <option *ngFor="let e of employees" [value]="e.id">
-            {{ e.prenom }} {{ e.nom }} — {{ e.matricule || 'N/A' }}
-          </option>
-        </select>
+    <div class="section-card history-card">
+      <div class="history-heading">
+        <h3>Historique des bulletins</h3>
       </div>
-
+      <div class="history-toolbar">
+        <div class="history-search">
+          <span class="search-icon"></span>
+          <input type="text" [(ngModel)]="historySearch" placeholder="Rechercher (nom, matricule)..." />
+        </div>
+        <div class="history-filters">
+          <select [(ngModel)]="historyMois" (change)="loadHistory()">
+            <option *ngFor="let m of monthOptions" [ngValue]="m.value">{{ m.label }}</option>
+          </select>
+          <input type="number" [(ngModel)]="historyAnnee" min="2000" max="2100" (change)="loadHistory()" />
+        </div>
+      </div>
       <div *ngIf="historyLoading" class="muted">Chargement...</div>
       <div *ngIf="historyError" class="error">{{ historyError }}</div>
 
-      <div *ngIf="historyList.length > 0" class="history-table-wrap">
-        <table class="data-table">
+      <div *ngIf="filteredHistoryList.length > 0" class="history-table-wrap">
+        <table class="data-table history-table">
           <thead>
             <tr>
               <th>Employé</th>
+              <th>Matricule</th>
               <th>Période</th>
               <th>Statut</th>
               <th class="history-net-col">Net à payer</th>
@@ -348,8 +436,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let h of historyList">
-              <td>{{ h.employeeFirstName }} {{ h.employeeLastName }}</td>
+            <tr *ngFor="let h of filteredHistoryList">
+              <td class="history-employee-name">{{ h.employeeFirstName }} {{ h.employeeLastName }}</td>
+              <td>{{ h.employeeMatricule || '-' }}</td>
               <td>{{ h.mois | number:'2.0-0' }}/{{ h.annee }}</td>
               <td>
                 <span class="badge-draft" *ngIf="h.status === 'DRAFT'">Brouillon</span>
@@ -360,15 +449,21 @@
               <td>{{ h.updatedAt | date:'dd/MM/yyyy HH:mm' }}</td>
               <td>
                 <button class="btn-link" *ngIf="h.status === 'DRAFT'" (click)="loadDraftIntoForm(h)">Modifier</button>
-                <a class="btn-link" *ngIf="h.pdfUrl" [href]="apiUrl + h.pdfUrl" target="_blank" rel="noopener">Télécharger PDF</a>
-                <button class="btn-link btn-link-send" *ngIf="h.status === 'VALIDATED'" (click)="sendPayslipFromHistory(h)">Envoyer</button>
+                <a class="btn-link" *ngIf="h.pdfUrl" [href]="apiUrl + h.pdfUrl" target="_blank"
+                  rel="noopener">Télécharger PDF</a>
+                <button class="btn-link btn-link-send" *ngIf="h.status === 'VALIDATED'"
+                  (click)="sendPayslipFromHistory(h)">Envoyer</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div *ngIf="historyEmployeeId > 0 && !historyLoading && historyList.length === 0" class="muted" style="margin-top:12px">
-        Aucun bulletin trouvé pour cet employé.
+      <div *ngIf="!historyLoading && historyList.length === 0" class="muted history-empty">
+        Aucun bulletin trouvé pour cette période.
+      </div>
+      <div *ngIf="!historyLoading && historyList.length > 0 && filteredHistoryList.length === 0"
+        class="muted history-empty">
+        Aucun bulletin ne correspond à la recherche.
       </div>
     </div>
   </div>
@@ -383,16 +478,14 @@
         <div class="batch-period-field">
           <label>Mois</label>
           <select [(ngModel)]="batchMois">
-            <option *ngFor="let m of monthOptions" [value]="m.value">{{ m.label }}</option>
+            <option *ngFor="let m of monthOptions" [ngValue]="m.value">{{ m.label }}</option>
           </select>
         </div>
         <div class="batch-period-field">
           <label>Année</label>
           <input type="number" [(ngModel)]="batchAnnee" min="2000" max="2100" />
         </div>
-        <button class="btn btn-primary batch-btn-prepare"
-                (click)="prepareBatch()"
-                [disabled]="batchLoading">
+        <button class="btn btn-primary batch-btn-prepare" (click)="prepareBatch()" [disabled]="batchLoading">
           {{ batchLoading ? 'Chargement...' : 'Préparer la période' }}
         </button>
       </div>
@@ -415,9 +508,8 @@
           <button class="btn btn-secondary" (click)="resetBatchVariables()">
             Réinitialiser les variables
           </button>
-          <button class="btn btn-primary"
-                  (click)="generateBatch()"
-                  [disabled]="batchSelectedCount === 0 || batchGenerating">
+          <button class="btn btn-primary" (click)="generateBatch()"
+            [disabled]="batchSelectedCount === 0 || batchGenerating">
             {{ batchGenerating ? 'Génération...' : 'Générer les bulletins' }}
           </button>
         </div>
@@ -433,34 +525,28 @@
           <thead>
             <tr>
               <th class="col-chk">
-                <input type="checkbox"
-                       [checked]="batchAllChecked"
-                       (change)="toggleAllBatch($event)" />
+                <input type="checkbox" [checked]="batchAllChecked" (change)="toggleAllBatch($event)" />
               </th>
               <th class="col-mat">Matricule</th>
               <th class="col-emp">Employé</th>
-              <th class="col-num">Salaire<br/>base</th>
-              <th class="col-num">Prime<br/>fixe</th>
+              <th class="col-num">Salaire<br />base</th>
+              <th class="col-num">Prime<br />fixe</th>
               <th class="col-input">Transport</th>
               <th class="col-input">Panier</th>
               <th class="col-input">Bonus</th>
               <th class="col-input">Indemnité</th>
               <th class="col-input">Retenue</th>
               <th class="col-motif">Motif</th>
-              <th class="col-net">Net à<br/>payer</th>
+              <th class="col-net">Net à<br />payer</th>
               <th class="col-action">Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let row of batchRows"
-                [class.row-missing]="!row.hasProfile"
-                [class.row-done]="row.pdfUrl">
+            <tr *ngFor="let row of batchRows" [class.row-missing]="!row.hasProfile" [class.row-done]="row.pdfUrl">
 
               <!-- Checkbox -->
               <td class="col-chk">
-                <input type="checkbox"
-                       [(ngModel)]="row.selected"
-                       [disabled]="!row.generable" />
+                <input type="checkbox" [(ngModel)]="row.selected" [disabled]="!row.generable" />
               </td>
 
               <!-- Matricule -->
@@ -471,36 +557,38 @@
 
               <!-- Salaire base (lecture seule) -->
               <td class="col-num cell-muted">
-                <span *ngIf="row.hasProfile">{{ row.baseSalary | number:'1.2-2' }}<br/><span class="unit">DH</span></span>
+                <span *ngIf="row.hasProfile">{{ row.baseSalary | number:'1.2-2' }}<br /><span
+                    class="unit">DH</span></span>
                 <span *ngIf="!row.hasProfile">—</span>
               </td>
 
               <!-- Prime fixe (lecture seule) -->
               <td class="col-num cell-muted">
-                <span *ngIf="row.hasProfile">{{ row.fixedBonus | number:'1.2-2' }}<br/><span class="unit">DH</span></span>
+                <span *ngIf="row.hasProfile">{{ row.fixedBonus | number:'1.2-2' }}<br /><span
+                    class="unit">DH</span></span>
                 <span *ngIf="!row.hasProfile">—</span>
               </td>
 
               <!-- Transport -->
               <td class="col-input">
                 <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10"
-                       [(ngModel)]="row.transport" (ngModelChange)="onBatchRowChange(row)" />
+                  [(ngModel)]="row.transport" (ngModelChange)="onBatchRowChange(row)" />
                 <span *ngIf="!row.generable && row.hasProfile" class="cell-disabled">{{ row.transport || 0 }}</span>
                 <span *ngIf="!row.hasProfile" class="cell-empty">—</span>
               </td>
 
               <!-- Panier -->
               <td class="col-input">
-                <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10"
-                       [(ngModel)]="row.panier" (ngModelChange)="onBatchRowChange(row)" />
+                <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10" [(ngModel)]="row.panier"
+                  (ngModelChange)="onBatchRowChange(row)" />
                 <span *ngIf="!row.generable && row.hasProfile" class="cell-disabled">{{ row.panier || 0 }}</span>
                 <span *ngIf="!row.hasProfile" class="cell-empty">—</span>
               </td>
 
               <!-- Bonus -->
               <td class="col-input">
-                <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10"
-                       [(ngModel)]="row.bonus" (ngModelChange)="onBatchRowChange(row)" />
+                <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10" [(ngModel)]="row.bonus"
+                  (ngModelChange)="onBatchRowChange(row)" />
                 <span *ngIf="!row.generable && row.hasProfile" class="cell-disabled">{{ row.bonus || 0 }}</span>
                 <span *ngIf="!row.hasProfile" class="cell-empty">—</span>
               </td>
@@ -508,7 +596,7 @@
               <!-- Indemnité -->
               <td class="col-input">
                 <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10"
-                       [(ngModel)]="row.indemnite" (ngModelChange)="onBatchRowChange(row)" />
+                  [(ngModel)]="row.indemnite" (ngModelChange)="onBatchRowChange(row)" />
                 <span *ngIf="!row.generable && row.hasProfile" class="cell-disabled">{{ row.indemnite || 0 }}</span>
                 <span *ngIf="!row.hasProfile" class="cell-empty">—</span>
               </td>
@@ -516,35 +604,37 @@
               <!-- Retenue spécifique -->
               <td class="col-input">
                 <input *ngIf="row.generable" type="number" class="cell-input" min="0" step="10"
-                       [(ngModel)]="row.retenue" (ngModelChange)="onBatchRowChange(row)"
-                       [style.borderColor]="(row.retenue > 0 && !row.motif) ? 'red' : null"
-                       title="Renseignez un motif si > 0" />
+                  [(ngModel)]="row.retenue" (ngModelChange)="onBatchRowChange(row)"
+                  [style.borderColor]="(row.retenue > 0 && !row.motif) ? 'red' : null"
+                  title="Renseignez un motif si > 0" />
                 <span *ngIf="!row.generable && row.hasProfile" class="cell-disabled">{{ row.retenue || 0 }}</span>
                 <span *ngIf="!row.hasProfile" class="cell-empty">—</span>
               </td>
 
               <!-- Motif retenue -->
               <td class="col-motif">
-                <input *ngIf="row.generable" type="text" class="cell-input motif-input"
-                       [(ngModel)]="row.motif" (ngModelChange)="onBatchRowChange(row)"
-                       [style.borderColor]="(row.retenue > 0 && !row.motif) ? 'red' : null"
-                       placeholder="Motif" />
+                <input *ngIf="row.generable" type="text" class="cell-input motif-input" [(ngModel)]="row.motif"
+                  (ngModelChange)="onBatchRowChange(row)"
+                  [style.borderColor]="(row.retenue > 0 && !row.motif) ? 'red' : null" placeholder="Motif" />
                 <span *ngIf="!row.generable && row.hasProfile" class="cell-disabled">{{ row.motif || '-' }}</span>
                 <span *ngIf="!row.hasProfile" class="cell-empty">—</span>
               </td>
 
               <!-- Net à payer -->
               <td class="col-net">
-                <span *ngIf="row.netPay != null" class="cell-net">{{ row.netPay | number:'1.2-2' }}<br/><span class="unit">DH</span></span>
+                <span *ngIf="row.netPay != null" class="cell-net">{{ row.netPay | number:'1.2-2' }}<br /><span
+                    class="unit">DH</span></span>
                 <span *ngIf="row.netPay == null" class="cell-disabled">—</span>
               </td>
 
               <!-- Action -->
               <td class="col-action">
                 <span *ngIf="!row.hasProfile" class="badge-configurer">À configurer</span>
-                <a *ngIf="row.pdfUrl" [href]="apiUrl + (row.pdfUrl.startsWith('/') ? '' : '/') + row.pdfUrl" target="_blank" class="badge-pdf">Voir PDF</a>
+                <a *ngIf="row.pdfUrl" [href]="apiUrl + (row.pdfUrl.startsWith('/') ? '' : '/') + row.pdfUrl"
+                  target="_blank" class="badge-pdf">Voir PDF</a>
                 <span *ngIf="row.generable && !row.pdfUrl" class="badge-generer">À générer</span>
-                <span *ngIf="row.rowError" class="error-text" [title]="row.rowError" style="color: red; font-size: 11px; display: block; margin-top: 4px;">Erreur</span>
+                <span *ngIf="row.rowError" class="error-text" [title]="row.rowError"
+                  style="color: red; font-size: 11px; display: block; margin-top: 4px;">Erreur</span>
               </td>
             </tr>
           </tbody>

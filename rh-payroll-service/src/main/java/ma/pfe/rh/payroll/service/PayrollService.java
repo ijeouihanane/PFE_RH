@@ -62,6 +62,15 @@ public class PayrollService {
 
     // ---- Espace Employé (retourne uniquement les bulletins SENT) ----
 
+    public List<PayslipResponse> payslipsForRhPeriod(int mois, int annee) {
+        if (mois < 1 || mois > 12) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Mois invalide");
+        }
+        return payslipRepository.findByMoisAndAnneeOrderByUpdatedAtDesc(mois, annee).stream()
+                .map(PayslipResponse::from)
+                .toList();
+    }
+
     public List<PayslipResponse> payslipsForEmployee(long employeeId) {
         return payslipRepository.findByEmployeeIdAndStatusOrderByAnneeDescMoisDesc(employeeId, PayslipStatus.SENT)
                 .stream()

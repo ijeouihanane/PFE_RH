@@ -62,7 +62,10 @@ import { environment } from '../../environments/environment';
                 <option [ngValue]="undefined">Affecter un employé...</option>
                 <option *ngFor="let u of availableUsers" [ngValue]="u.id">{{ u.nom }} {{ u.prenom }}</option>
               </select>
-              <button class="btn btn-primary btn-sm" (click)="assign(p.id)" [disabled]="!selectedEmployeeToAssign[p.id]">
+              <button class="btn btn-primary btn-sm btn-ajouter" (click)="assign(p.id)" [disabled]="!selectedEmployeeToAssign[p.id]">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                </svg>
                 Ajouter
               </button>
             </div>
@@ -94,6 +97,23 @@ import { environment } from '../../environments/environment';
             <button class="btn btn-primary" type="submit" [disabled]="createForm.invalid">Créer le Projet</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- CONFIRM MODAL -->
+    <div class="modal-overlay" *ngIf="showConfirmModal" (click)="closeConfirm()">
+      <div class="modal-card confirm-card" (click)="$event.stopPropagation()">
+        <div class="confirm-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <h3>Retirer cet employé ?</h3>
+        <p>Êtes-vous sûr de vouloir retirer cet employé du projet ?</p>
+        <div class="modal-actions confirm-actions">
+          <button class="btn btn-ghost" type="button" (click)="closeConfirm()">Annuler</button>
+          <button class="btn btn-danger" type="button" (click)="confirmUnassign()">Retirer l'employé</button>
+        </div>
       </div>
     </div>
   `,
@@ -150,7 +170,6 @@ import { environment } from '../../environments/environment';
       }
 
       .project-card:hover {
-        transform: translateY(-4px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         border-color: var(--rh-blue);
       }
@@ -266,7 +285,7 @@ import { environment } from '../../environments/environment';
 
       .assign-box {
         display: flex;
-        gap: 8px;
+        gap: 10px;
       }
 
       .assign-select {
@@ -274,12 +293,24 @@ import { environment } from '../../environments/environment';
         font-size: 13px;
         height: 38px;
         padding: 0 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        outline: none;
+      }
+      .assign-select:focus {
+        border-color: var(--rh-blue);
       }
 
-      .btn-sm {
-        padding: 0 16px;
+      .btn-ajouter {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         height: 38px;
+        padding: 0 16px;
         font-size: 13px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.2s;
       }
 
       /* Empty State */
@@ -381,6 +412,55 @@ import { environment } from '../../environments/environment';
         justify-content: flex-end;
         gap: 12px;
       }
+      
+      /* Confirm Modal specific */
+      .confirm-card {
+        max-width: 420px;
+        text-align: center;
+        padding: 30px 24px 0 24px;
+      }
+      .confirm-icon {
+        width: 48px;
+        height: 48px;
+        background: #fee2e2;
+        color: #ef4444;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px auto;
+      }
+      .confirm-card h3 {
+        margin: 0 0 10px 0;
+        color: var(--rh-slate);
+        font-size: 18px;
+      }
+      .confirm-card p {
+        color: #64748b;
+        font-size: 14px;
+        margin: 0 0 24px 0;
+      }
+      .confirm-actions {
+        margin: 0 -24px;
+        border-top: 1px solid #f1f5f9;
+        background: #f8fafc;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: center;
+      }
+      .btn-danger {
+        background: #ef4444;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-danger:hover {
+        background: #dc2626;
+      }
 
       @keyframes fadeIn {
         from { opacity: 0; }
@@ -407,11 +487,14 @@ export class ProjectsComponent implements OnInit {
 
   selectedEmployeeToAssign: { [projectId: number]: number | undefined } = {};
 
+  showConfirmModal = false;
+  employeeToRemove: { projectId: number, empId: number } | null = null;
+
   constructor(
     readonly auth: AuthService,
     private readonly http: HttpClient,
     private readonly fb: FormBuilder
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     if (this.auth.user?.role !== 'MANAGER') {
@@ -430,14 +513,14 @@ export class ProjectsComponent implements OnInit {
         this.availableUsers = users.filter(u => u.managerId === this.auth.user?.id);
         users.forEach(u => this.usersMap.set(u.id, u));
       },
-      error: () => {}
+      error: () => { }
     });
   }
 
   loadProjects(): void {
     this.http.get<any[]>(`${environment.apiUrl}/api/projects/mine`).subscribe({
       next: (p) => { this.projects = p; },
-      error: () => {}
+      error: () => { }
     });
   }
 
@@ -466,9 +549,24 @@ export class ProjectsComponent implements OnInit {
   }
 
   unassign(projectId: number, empId: number): void {
-    if (!confirm('Retirer cet employé du projet ?')) return;
+    this.employeeToRemove = { projectId, empId };
+    this.showConfirmModal = true;
+  }
+
+  closeConfirm(): void {
+    this.showConfirmModal = false;
+    this.employeeToRemove = null;
+  }
+
+  confirmUnassign(): void {
+    if (!this.employeeToRemove) return;
+    const { projectId, empId } = this.employeeToRemove;
+    
     this.http.delete(`${environment.apiUrl}/api/projects/${projectId}/assign/${empId}`).subscribe({
-      next: () => this.loadProjects(),
+      next: () => {
+        this.closeConfirm();
+        this.loadProjects();
+      },
       error: (e) => alert('Erreur retrait')
     });
   }
